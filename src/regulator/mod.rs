@@ -644,9 +644,17 @@ impl Regulator {
         // signal the store would produce live; storing only the
         // `pattern_for` output would lose the underlying records needed
         // to extend patterns with new corrections post-restart.
+        //
+        // `example_corrections` is stored newest-first, but
+        // `record_correction` appends to the end of the internal vec
+        // (so the vec is oldest-first). Iterate in reverse so the
+        // replay order is oldest→newest, matching the store shape
+        // `pattern_for` originally saw. Without the `.rev()`, a single
+        // export→import roundtrip would silently invert the ordering
+        // reported by subsequent `pattern_for` calls.
         let mut correction = CorrectionStore::new();
         for (cluster, pattern) in &state.correction_patterns {
-            for text in &pattern.example_corrections {
+            for text in pattern.example_corrections.iter().rev() {
                 correction.record_correction(cluster, text.clone());
             }
         }
@@ -1569,6 +1577,36 @@ mod tests {
             }
             other => panic!("restored regulator must fire ProceduralWarning, got {other:?}"),
         }
+    }
+
+    #[test]
+    fn import_preserves_example_corrections_order() {
+        // Contract: `example_corrections` is documented newest-first.
+        // An export → JSON round-trip → import cycle must preserve that
+        // ordering so the value at `example_corrections[0]` stays
+        // the newest correction before and after persistence.
+        // Regression guard for a pre-0.1.1 bug where a single roundtrip
+        // inverted the order.
+        let mut source = Regulator::for_user("user_order");
+        drive_three_corrections_on(&mut source, "refactor this function to be async");
+        let snapshot_before = source.export();
+        let (cluster, pattern_before) = snapshot_before
+            .correction_patterns
+            .iter()
+            .next()
+            .expect("one pattern after 3 corrections");
+        let before = pattern_before.example_corrections.clone();
+
+        let json = serde_json::to_string(&snapshot_before).expect("serialise");
+        let decoded: RegulatorState =
+            serde_json::from_str(&json).expect("deserialise");
+        let restored = Regulator::import(decoded);
+        let snapshot_after = restored.export();
+        let pattern_after = snapshot_after
+            .correction_patterns
+            .get(cluster)
+            .expect("pattern restored under same cluster key");
+        assert_eq!(pattern_after.example_corrections, before);
     }
 
     #[test]

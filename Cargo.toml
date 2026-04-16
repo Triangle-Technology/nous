@@ -1,6 +1,6 @@
 [package]
 name = "nous"
-version = "0.1.0"
+version = "0.1.1"
 edition = "2021"
 description = "Reliability layer for Rust LLM agents: scope drift, cost circuit breaks, and procedural correction memory as event-driven Decisions."
 authors = ["TRIANGLE.TECHNOLOGY COMPANY LIMITED"]
