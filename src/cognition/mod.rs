@@ -1,0 +1,14 @@
+pub mod detector;
+pub mod emotional;
+pub mod thalamic_gate;
+pub mod locus_coeruleus;
+pub mod belief_state;
+pub mod resource_allocator;
+pub mod world_model;
+pub mod convergence;
+pub mod dynamics;
+pub mod adaptive_thresholds;
+pub mod intervention;
+pub mod delta_modulation;
+pub mod hs_arousal;
+pub mod signals;

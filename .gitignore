@@ -1,0 +1,32 @@
+# Build artifacts
+/target/
+Cargo.lock
+
+# Running eval output (PID 15048 writes here; regenerated per run)
+/eval_live_ollama.txt
+/eval_live_ollama_err.txt
+
+# Internal design docs — biological framing, mechanism synthesis, session
+# memory cross-references; stay local, not part of public repo.
+# Public docs are in Cargo.toml `include` whitelist.
+/docs/brain-map.md
+/docs/intervention.md
+/docs/theories.md
+/docs/mamba-research.md
+/docs/tang3-roadmap.md
+/docs/ssm-cognitive-state.md
+/docs/task-eval-design.md
+/docs/eval-artifacts/
+
+# IDE
+/.idea/
+/.vscode/
+
+# Claude Code local session state
+/.claude/
+
+# OS
+.DS_Store
+Thumbs.db
+*.swp
+*.swo

@@ -1,0 +1,81 @@
+[package]
+name = "nous"
+version = "0.1.0"
+edition = "2021"
+description = "Reliability layer for Rust LLM agents: scope drift, cost circuit breaks, and procedural correction memory as event-driven Decisions."
+authors = ["TRIANGLE.TECHNOLOGY COMPANY LIMITED"]
+license = "MIT"
+repository = "https://github.com/Triangle-Technology/nous"
+readme = "README.md"
+documentation = "https://docs.rs/nous"
+keywords = ["llm", "agent", "regulator", "reliability", "circuit-breaker"]
+categories = ["development-tools", "rust-patterns"]
+
+# Only ship what an integrator needs. Internal architecture notes
+# (brain-map, intervention, theories, ssm-*, tang3-*, task-eval-design,
+# eval-artifacts/) are project-history context. CLAUDE.md also stays
+# out — it cross-references `memory/*.md` files that live in the
+# author's private working directory and would be dangling refs from
+# a crates.io download.
+include = [
+    "src/**/*.rs",
+    "examples/**/*.rs",
+    "tests/**/*.rs",
+    "Cargo.toml",
+    "README.md",
+    "LICENSE",
+    "principles.md",
+    "docs/regulator-design.md",
+    "docs/regulator-guide.md",
+    "docs/app-contract.md",
+]
+
+[dependencies]
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+regex = "1"
+thiserror = "2"
+tokio = { version = "1", features = ["rt", "sync", "macros"] }
+async-trait = "0.1"
+futures = "0.3"
+rand = "0.8"
+ureq = { version = "2", default-features = false, features = ["json"] }
+
+[features]
+default = []
+candle = ["dep:candle-core", "dep:candle-nn", "dep:hf-hub", "dep:tokenizers"]
+
+[dependencies.candle-core]
+version = "0.8"
+optional = true
+
+[dependencies.candle-nn]
+version = "0.8"
+optional = true
+
+[dependencies.hf-hub]
+version = "0.4"
+optional = true
+
+[dependencies.tokenizers]
+version = "0.21"
+optional = true
+default-features = false
+features = ["onig"]
+
+[dev-dependencies]
+approx = "0.5"
+tokio = { version = "1", features = ["rt-multi-thread", "macros"] }
+
+[[example]]
+name = "train_gate"
+required-features = ["candle"]
+
+[[example]]
+name = "probe_hidden_states"
+required-features = ["candle"]
+
+[[example]]
+name = "bottleneck_eval"
+required-features = ["candle"]
+
