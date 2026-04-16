@@ -225,6 +225,41 @@ Reserved. Not emitted in the current release. Will flag specific
 response fragments with low per-token logprob confidence for the app to
 highlight or re-generate. Ignore for now.
 
+### 3.6 `CircuitBreak(RepeatedToolCallLoop)` (0.3.0)
+
+Fires when the agent invokes the **same tool** five or more
+consecutive times within a single turn without interleaving a
+different tool or reasoning step. Drives the halt from
+[`LLMEvent::ToolCall`] events; [`LLMEvent::ToolResult`] is observed
+for cost / failure accounting but does not influence loop detection.
+
+**Emit per tool call**:
+
+```rust
+regulator.on_event(LLMEvent::ToolCall {
+    tool_name: "search_orders".into(),
+    args_json: Some(serde_json::to_string(&args)?),
+});
+// ... run the tool ...
+regulator.on_event(LLMEvent::ToolResult {
+    tool_name: "search_orders".into(),
+    success: true,
+    duration_ms: elapsed.as_millis() as u64,
+    error_summary: None,
+});
+```
+
+The loop-detection unit of account is **the turn**. On every
+`LLMEvent::TurnStart` the tool-call history resets — a 3-retry pattern
+on turn 1 followed by 3-retry on turn 2 does not fire a loop.
+Constant: [`tools::TOOL_LOOP_THRESHOLD`] (= 5).
+
+Observability getters: [`Regulator::tool_total_calls`],
+[`Regulator::tool_counts_by_name`], [`Regulator::tool_total_duration_ms`],
+[`Regulator::tool_failure_count`]. All reset on `TurnStart`.
+
+Full demo: `cargo run --example regulator_tool_loop_demo`.
+
 ---
 
 ## 4. Priority order (P10)
@@ -235,6 +270,7 @@ variant, following this strict order:
 ```
 CircuitBreak(CostCapReached)            ← highest: hard stop, cost + quality
 CircuitBreak(QualityDeclineNoRecovery)  ← hard stop, quality trend
+CircuitBreak(RepeatedToolCallLoop)      ← hard stop, tool-call loop (0.3.0)
 ScopeDriftWarn                          ← semantic warning
 ProceduralWarning                       ← historical advisory
 Continue                                ← fallthrough (no predicates fired)

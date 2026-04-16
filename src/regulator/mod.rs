@@ -61,6 +61,7 @@ pub mod cost;
 pub mod scope;
 pub mod state;
 pub mod token_stats;
+pub mod tools;
 
 use serde::{Deserialize, Serialize};
 
@@ -73,6 +74,7 @@ use self::cost::{
 };
 use self::scope::{ScopeTracker, DRIFT_WARN_THRESHOLD};
 use self::token_stats::{confidence_with_fallback, TokenStatsAccumulator};
+use self::tools::ToolStatsAccumulator;
 
 pub use self::state::RegulatorState;
 
@@ -163,6 +165,34 @@ pub enum LLMEvent {
         /// flag specific response ranges. Callers may pass `None`.
         fragment_spans: Option<Vec<(usize, usize)>>,
     },
+
+    /// The agent invoked a tool. Emit once per tool call.
+    ///
+    /// Drives per-turn tool-loop detection (see
+    /// [`CircuitBreakReason::RepeatedToolCallLoop`] and
+    /// [`tools::TOOL_LOOP_THRESHOLD`]). `args_json` is opaque to the
+    /// regulator — stored only for downstream observability by the
+    /// app; pass `None` when you do not want to thread args through.
+    ToolCall {
+        tool_name: String,
+        args_json: Option<String>,
+    },
+
+    /// The tool call just returned. Emit after `ToolCall` for each
+    /// completed tool call. Carries latency + success signal for
+    /// observability via [`Regulator::tool_total_duration_ms`] and
+    /// [`Regulator::tool_failure_count`]. Does not influence
+    /// [`Decision::CircuitBreak`] in 0.3.0 (loop detection uses
+    /// `ToolCall` only); future sessions may wire failure-pattern
+    /// detection.
+    ToolResult {
+        tool_name: String,
+        success: bool,
+        duration_ms: u64,
+        /// Short description of the failure when `success == false`.
+        /// Free-form — the regulator does not parse the text.
+        error_summary: Option<String>,
+    },
 }
 
 // ── Decisions ──────────────────────────────────────────────────────────
@@ -244,6 +274,14 @@ pub enum CircuitBreakReason {
     RepeatedFailurePattern {
         cluster: String,
         failure_count: usize,
+    },
+    /// The agent called the same tool [`tools::TOOL_LOOP_THRESHOLD`]+
+    /// consecutive times in a single turn without interleaving a
+    /// different tool or a reasoning step. Signature pattern of a
+    /// runaway retry loop — halt before the cost spirals.
+    RepeatedToolCallLoop {
+        tool_name: String,
+        consecutive_count: usize,
     },
 }
 
@@ -332,6 +370,11 @@ pub struct Regulator {
     /// generated. Empty string before the first `TurnStart`, or when the
     /// message has no extractable top-2 topics.
     current_topic_cluster: String,
+    /// Per-turn tool-call + tool-result history. Reset on `TurnStart`
+    /// (tool loops are measured within a single turn). Drives
+    /// [`CircuitBreakReason::RepeatedToolCallLoop`] emission in
+    /// [`Self::decide`] via [`tools::ToolStatsAccumulator::detected_loop`].
+    tools: ToolStatsAccumulator,
 }
 
 impl Regulator {
@@ -348,6 +391,7 @@ impl Regulator {
             cost: CostAccumulator::new(),
             correction: CorrectionStore::new(),
             current_topic_cluster: String::new(),
+            tools: ToolStatsAccumulator::new(),
         }
     }
 
@@ -387,6 +431,13 @@ impl Regulator {
                 // The logprob window is per-turn: confidence should not
                 // drag forward from the previous turn's tokens.
                 self.token_stats.begin_turn();
+                // Tool-call history is per-turn too — a tool-call loop
+                // is defined as consecutive same-tool calls within one
+                // turn, so leaking tool history across turns would
+                // conflate "legitimate retry on this turn" with
+                // "stuck in a multi-turn loop" (which is a different
+                // signal, not yet wired).
+                self.tools.reset_turn();
                 // Scope tracker is also per-turn; `set_task` loads the
                 // new task keywords and clears any stale response
                 // keywords from the previous turn.
@@ -477,6 +528,30 @@ impl Regulator {
                     self.session.process_response(&response, quality);
                 }
             }
+
+            LLMEvent::ToolCall {
+                tool_name,
+                args_json,
+            } => {
+                // Record for loop detection + observability. The call
+                // itself does not advance any cost / quality state —
+                // the app's Cost event (or its own tool cost tracking)
+                // remains the source of truth for token accounting.
+                self.tools.record_call(tool_name, args_json);
+            }
+
+            LLMEvent::ToolResult {
+                tool_name,
+                success,
+                duration_ms,
+                error_summary,
+            } => {
+                // Observability only in 0.3.0. Future work: feed the
+                // success flag into a failure-pattern detector that
+                // raises a dedicated `RepeatedFailurePattern` subtype.
+                self.tools
+                    .record_result(tool_name, success, duration_ms, error_summary);
+            }
         }
     }
 
@@ -519,6 +594,32 @@ impl Regulator {
         self.cost.cap_tokens()
     }
 
+    // ── Tool-call observability (Path A, 0.3.0) ───────────────────────
+
+    /// Total tool calls observed in the current turn. Reset on every
+    /// `TurnStart`. Zero when no tool calls have been emitted yet.
+    pub fn tool_total_calls(&self) -> usize {
+        self.tools.total_calls()
+    }
+
+    /// Per-tool call counts in the current turn (e.g.
+    /// `{"search": 3, "db.query": 1}`).
+    pub fn tool_counts_by_name(&self) -> std::collections::HashMap<String, usize> {
+        self.tools.counts_by_tool()
+    }
+
+    /// Sum of `duration_ms` across all `ToolResult` events in the
+    /// current turn. Zero when no results have been emitted.
+    pub fn tool_total_duration_ms(&self) -> u64 {
+        self.tools.total_duration_ms()
+    }
+
+    /// Count of `ToolResult` events in the current turn with
+    /// `success == false`.
+    pub fn tool_failure_count(&self) -> usize {
+        self.tools.failure_count()
+    }
+
     /// Query the current regulatory decision.
     ///
     /// ## Priority order (P10)
@@ -537,13 +638,18 @@ impl Regulator {
     ///    trending down over [`QUALITY_DECLINE_WINDOW`] turns with mean
     ///    still below [`POOR_QUALITY_MEAN`]. Urgent enough to halt a
     ///    retry loop.
-    /// 3. [`Decision::ScopeDriftWarn`] — response keywords disjoint
+    /// 3. [`Decision::CircuitBreak`] with
+    ///    [`CircuitBreakReason::RepeatedToolCallLoop`] — agent called
+    ///    the same tool [`tools::TOOL_LOOP_THRESHOLD`]+ consecutive
+    ///    times within a single turn. Signature of a runaway retry
+    ///    loop — halt before the cost spirals.
+    /// 4. [`Decision::ScopeDriftWarn`] — response keywords disjoint
     ///    from task keywords (semantic warning, not a stop).
-    /// 4. [`Decision::ProceduralWarning`] — the current topic cluster
+    /// 5. [`Decision::ProceduralWarning`] — the current topic cluster
     ///    has a learned [`CorrectionPattern`] from repeated past user
     ///    corrections (advisory: app / LLM should consult the
     ///    `example_corrections` before generating).
-    /// 5. [`Decision::Continue`] — no fired predicates.
+    /// 6. [`Decision::Continue`] — no fired predicates.
     ///
     /// Rationale: urgent stop signals dominate semantic warnings which
     /// dominate historical-pattern advisories. A future session will
@@ -597,7 +703,25 @@ impl Regulator {
             }
         }
 
-        // ── 3. Scope-drift warning ──
+        // ── 3. Tool-call loop circuit break ──
+        // Slots between the quality-based circuit breaks above and the
+        // semantic ScopeDriftWarn below. Same rationale as 1/2: the
+        // agent is wasting cost in a way that will not self-correct
+        // without intervention — halt rather than just warn.
+        if let Some((tool_name, consecutive_count)) = self.tools.detected_loop() {
+            return Decision::CircuitBreak {
+                reason: CircuitBreakReason::RepeatedToolCallLoop {
+                    tool_name,
+                    consecutive_count,
+                },
+                suggestion: "Agent repeatedly called the same tool without progress. \
+                             Break the loop: re-prompt with a different approach, \
+                             escalate to the user, or mark the task unresolved."
+                    .into(),
+            };
+        }
+
+        // ── 4. Scope-drift warning ──
         if let Some(drift) = self.scope.drift_score() {
             if drift >= DRIFT_WARN_THRESHOLD {
                 return Decision::ScopeDriftWarn {
@@ -608,7 +732,7 @@ impl Regulator {
             }
         }
 
-        // ── 4. Procedural-correction warning ──
+        // ── 5. Procedural-correction warning ──
         if !self.current_topic_cluster.is_empty() {
             if let Some(pattern) = self
                 .correction
@@ -620,7 +744,7 @@ impl Regulator {
             }
         }
 
-        // ── 5. Fall through ──
+        // ── 6. Fall through ──
         Decision::Continue
     }
 
@@ -687,6 +811,7 @@ impl Regulator {
             cost: CostAccumulator::new(),
             correction,
             current_topic_cluster: String::new(),
+            tools: ToolStatsAccumulator::new(),
         }
     }
 
@@ -1694,6 +1819,151 @@ mod tests {
             "injected prompt missing current-request marker"
         );
         assert!(injected.len() > prompt.len(), "expected expansion");
+    }
+
+    // ── Path A: tool-call observation channel (0.3.0) ─────────────────
+
+    #[test]
+    fn tool_call_event_accumulates_stats() {
+        let mut reg = Regulator::for_user("user_a");
+        reg.on_event(LLMEvent::TurnStart {
+            user_message: "do a search".into(),
+        });
+        for _ in 0..3 {
+            reg.on_event(LLMEvent::ToolCall {
+                tool_name: "search".into(),
+                args_json: None,
+            });
+        }
+        assert_eq!(reg.tool_total_calls(), 3);
+        let counts = reg.tool_counts_by_name();
+        assert_eq!(counts.get("search"), Some(&3));
+    }
+
+    #[test]
+    fn tool_call_loop_fires_circuit_break() {
+        let mut reg = Regulator::for_user("user_a");
+        reg.on_event(LLMEvent::TurnStart {
+            user_message: "do a search".into(),
+        });
+        // 5 consecutive same-tool calls = threshold
+        for _ in 0..5 {
+            reg.on_event(LLMEvent::ToolCall {
+                tool_name: "search".into(),
+                args_json: None,
+            });
+        }
+        match reg.decide() {
+            Decision::CircuitBreak {
+                reason:
+                    CircuitBreakReason::RepeatedToolCallLoop {
+                        tool_name,
+                        consecutive_count,
+                    },
+                ..
+            } => {
+                assert_eq!(tool_name, "search");
+                assert_eq!(consecutive_count, 5);
+            }
+            other => panic!("expected RepeatedToolCallLoop, got {other:?}"),
+        }
+    }
+
+    #[test]
+    fn tool_call_interleaved_does_not_fire_loop() {
+        let mut reg = Regulator::for_user("user_a");
+        reg.on_event(LLMEvent::TurnStart {
+            user_message: "do a search".into(),
+        });
+        // 4 search + 1 db.query + 4 search — trailing run of 4 < 5
+        for _ in 0..4 {
+            reg.on_event(LLMEvent::ToolCall {
+                tool_name: "search".into(),
+                args_json: None,
+            });
+        }
+        reg.on_event(LLMEvent::ToolCall {
+            tool_name: "db.query".into(),
+            args_json: None,
+        });
+        for _ in 0..4 {
+            reg.on_event(LLMEvent::ToolCall {
+                tool_name: "search".into(),
+                args_json: None,
+            });
+        }
+        assert!(matches!(reg.decide(), Decision::Continue));
+    }
+
+    #[test]
+    fn turn_start_resets_tool_stats() {
+        let mut reg = Regulator::for_user("user_a");
+        reg.on_event(LLMEvent::TurnStart {
+            user_message: "turn 1".into(),
+        });
+        for _ in 0..5 {
+            reg.on_event(LLMEvent::ToolCall {
+                tool_name: "search".into(),
+                args_json: None,
+            });
+        }
+        // Loop would fire at this point.
+        assert!(matches!(reg.decide(), Decision::CircuitBreak { .. }));
+        // New turn resets tool stats — no loop in turn 2.
+        reg.on_event(LLMEvent::TurnStart {
+            user_message: "turn 2".into(),
+        });
+        assert_eq!(reg.tool_total_calls(), 0);
+        assert!(!matches!(reg.decide(), Decision::CircuitBreak { .. }));
+    }
+
+    #[test]
+    fn tool_result_observability_counters() {
+        let mut reg = Regulator::for_user("user_a");
+        reg.on_event(LLMEvent::TurnStart {
+            user_message: "do a search".into(),
+        });
+        reg.on_event(LLMEvent::ToolResult {
+            tool_name: "search".into(),
+            success: true,
+            duration_ms: 120,
+            error_summary: None,
+        });
+        reg.on_event(LLMEvent::ToolResult {
+            tool_name: "db.query".into(),
+            success: false,
+            duration_ms: 250,
+            error_summary: Some("timeout".into()),
+        });
+        assert_eq!(reg.tool_total_duration_ms(), 370);
+        assert_eq!(reg.tool_failure_count(), 1);
+    }
+
+    #[test]
+    fn tool_loop_has_higher_priority_than_scope_drift() {
+        // Contract (P10): tool-call loop is a CircuitBreak and
+        // dominates the semantic ScopeDriftWarn.
+        let mut reg = Regulator::for_user("user_a");
+        reg.on_event(LLMEvent::TurnStart {
+            user_message: "refactor this async function".into(),
+        });
+        for _ in 0..5 {
+            reg.on_event(LLMEvent::ToolCall {
+                tool_name: "search".into(),
+                args_json: None,
+            });
+        }
+        // Produce a drift-triggering response too.
+        reg.on_event(LLMEvent::TurnComplete {
+            full_response: "added logging database migration new schema totally unrelated".into(),
+        });
+        assert!(matches!(
+            reg.decide(),
+            Decision::CircuitBreak {
+                reason: CircuitBreakReason::RepeatedToolCallLoop { .. },
+                ..
+            }
+        ));
     }
 
     #[test]
