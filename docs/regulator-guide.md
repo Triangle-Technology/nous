@@ -153,7 +153,7 @@ Each `CorrectionPattern` contains:
   newest first. These are what you pass to the LLM.
 - `learned_from_turns`, `confidence` — provenance counters.
 
-Recommended app flow:
+Recommended app flow (0.1.1+ — uses `as_prompt_addendum`):
 
 ```rust
 // `LLMEvent::TurnStart` takes ownership of the user_message String,
@@ -165,28 +165,40 @@ regulator.on_event(LLMEvent::TurnStart {
 });
 
 // Probe BEFORE generation — see §5.2 for why timing matters here.
-let prelude = if let Decision::ProceduralWarning { patterns } = regulator.decide() {
+let addendum = if let Decision::ProceduralWarning { patterns } = regulator.decide() {
     patterns
         .iter()
-        .flat_map(|p| &p.example_corrections)
-        .map(|ex| format!("- {ex}"))
+        .map(|p| p.as_prompt_addendum())
+        .filter(|s| !s.is_empty())
         .collect::<Vec<_>>()
         .join("\n")
 } else {
     String::new()
 };
 
-let prompt_with_memory = if prelude.is_empty() {
+let prompt_with_memory = if addendum.is_empty() {
     user_message
 } else {
-    format!(
-        "User has previously corrected responses on this topic with:\n{prelude}\n\n\
-         Current request: {user_message}"
-    )
+    format!("{addendum}\nCurrent request: {user_message}")
 };
 
 // ... call LLM with prompt_with_memory ...
 ```
+
+[`CorrectionPattern::as_prompt_addendum`] returns a ready-to-splice text
+block listing the stored `example_corrections` newest-first, with a
+header naming the cluster and the correction count. The method returns
+an empty string when the pattern carries no examples (e.g., imported
+from a pre-Session-20 snapshot) — the `filter(|s| !s.is_empty())` above
+short-circuits cleanly in that case.
+
+If you want more prescriptive framing than the neutral header Nous
+produces (e.g., "You MUST respect these past corrections:"), wrap the
+addendum string yourself — the method stays factual so apps stay in
+control of prompt voice.
+
+See [`examples/regulator_prompt_intervention_demo.rs`](../examples/regulator_prompt_intervention_demo.rs)
+for a live BEFORE/AFTER walkthrough.
 
 ### 3.5 `LowConfidenceSpans { spans }`
 

@@ -269,6 +269,76 @@ pub struct CorrectionPattern {
     pub example_corrections: Vec<String>,
 }
 
+impl CorrectionPattern {
+    /// Produce a concise text block summarizing this learned pattern,
+    /// suitable for splicing into the next prompt as context. The app
+    /// owns framing — prepend to a system prompt, prefix the user
+    /// message, add as assistant-turn guidance, or wrap with an explicit
+    /// instruction clause.
+    ///
+    /// # Format
+    ///
+    /// ```text
+    /// Past user corrections on cluster "{cluster}" ({N} similar turns):
+    /// - {correction_1}
+    /// - {correction_2}
+    /// - {correction_3}
+    /// ```
+    ///
+    /// Corrections appear newest-first — same ordering as
+    /// [`Self::example_corrections`]. The trailing newline is included
+    /// so the block concatenates cleanly with surrounding prompt text.
+    ///
+    /// # Empty case
+    ///
+    /// Returns an empty string when no example corrections are
+    /// present (for example, a pattern deserialized from a
+    /// pre-Session-20 snapshot). Callers can short-circuit on
+    /// `String::is_empty()`.
+    ///
+    /// # P9b compliance
+    ///
+    /// No parsing, no translation, no template rewriting. The raw
+    /// correction texts ride through verbatim — the LLM does rule
+    /// interpretation at generation time, as in
+    /// [`Decision::ProceduralWarning`] itself.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// use nous::{Decision, LLMEvent, Regulator};
+    ///
+    /// # let mut regulator = Regulator::for_user("alice");
+    /// # regulator.on_event(LLMEvent::TurnStart {
+    /// #     user_message: "Refactor auth to be async".into(),
+    /// # });
+    /// if let Decision::ProceduralWarning { patterns } = regulator.decide() {
+    ///     for pattern in &patterns {
+    ///         let addendum = pattern.as_prompt_addendum();
+    ///         if !addendum.is_empty() {
+    ///             // Splice into next prompt — e.g. prepend to user msg.
+    ///             let _enhanced = format!("{addendum}\nUser task: ...");
+    ///         }
+    ///     }
+    /// }
+    /// ```
+    pub fn as_prompt_addendum(&self) -> String {
+        if self.example_corrections.is_empty() {
+            return String::new();
+        }
+        let mut out = format!(
+            "Past user corrections on cluster \"{}\" ({} similar turns):\n",
+            self.topic_cluster, self.learned_from_turns
+        );
+        for correction in &self.example_corrections {
+            out.push_str("- ");
+            out.push_str(correction);
+            out.push('\n');
+        }
+        out
+    }
+}
+
 // ── Regulator ──────────────────────────────────────────────────────────
 
 // `RegulatorState` moved to the `state` submodule in Session 20 so the
@@ -644,9 +714,18 @@ impl Regulator {
         // signal the store would produce live; storing only the
         // `pattern_for` output would lose the underlying records needed
         // to extend patterns with new corrections post-restart.
+        //
+        // `example_corrections` is stored newest-first, but
+        // `record_correction` appends to the end of the internal vec
+        // (so the vec is oldest-first). Iterate in reverse so the
+        // replay order is oldest→newest, matching the store shape
+        // `pattern_for` originally saw. Without the `.rev()`, a single
+        // export→import roundtrip would silently invert the ordering
+        // reported by subsequent `pattern_for` / `as_prompt_addendum`
+        // calls.
         let mut correction = CorrectionStore::new();
         for (cluster, pattern) in &state.correction_patterns {
-            for text in &pattern.example_corrections {
+            for text in pattern.example_corrections.iter().rev() {
                 correction.record_correction(cluster, text.clone());
             }
         }
@@ -1572,6 +1651,35 @@ mod tests {
     }
 
     #[test]
+    fn import_preserves_example_corrections_order() {
+        // Contract: `example_corrections` is documented newest-first.
+        // An export → JSON round-trip → import cycle must preserve that
+        // ordering, so `pattern.as_prompt_addendum()` produces the same
+        // text before and after persistence. Regression guard for the
+        // pre-fix bug where a single roundtrip inverted the order.
+        let mut source = Regulator::for_user("user_order");
+        drive_three_corrections_on(&mut source, "refactor this function to be async");
+        let snapshot_before = source.export();
+        let (cluster, pattern_before) = snapshot_before
+            .correction_patterns
+            .iter()
+            .next()
+            .expect("one pattern after 3 corrections");
+        let before = pattern_before.example_corrections.clone();
+
+        let json = serde_json::to_string(&snapshot_before).expect("serialise");
+        let decoded: RegulatorState =
+            serde_json::from_str(&json).expect("deserialise");
+        let restored = Regulator::import(decoded);
+        let snapshot_after = restored.export();
+        let pattern_after = snapshot_after
+            .correction_patterns
+            .get(cluster)
+            .expect("pattern restored under same cluster key");
+        assert_eq!(pattern_after.example_corrections, before);
+    }
+
+    #[test]
     fn legacy_snapshot_loads_without_correction_patterns() {
         // Contract: RegulatorState snapshots from Sessions 16–19 lack
         // the correction_patterns field. `#[serde(default)]` must
@@ -1591,5 +1699,97 @@ mod tests {
         let reg = Regulator::import(state);
         assert_eq!(reg.user_id(), "legacy");
         assert!(matches!(reg.decide(), Decision::Continue));
+    }
+
+    // ── CorrectionPattern::as_prompt_addendum ──────────────────────────
+
+    /// Build a pattern via the same CorrectionStore path a real Regulator
+    /// uses, so tests exercise the intended construction route rather
+    /// than poking struct fields directly.
+    fn pattern_with_examples(
+        cluster: &str,
+        user_id: &str,
+        corrections: &[&str],
+    ) -> CorrectionPattern {
+        let mut store = crate::regulator::correction::CorrectionStore::new();
+        for c in corrections {
+            store.record_correction(cluster, *c);
+        }
+        store
+            .pattern_for(user_id, cluster)
+            .expect("enough corrections to emerge as pattern")
+    }
+
+    #[test]
+    fn addendum_empty_for_pattern_without_examples() {
+        // Contract: pre-Session-20 snapshots deserialize with empty
+        // `example_corrections`. The addendum then has nothing to carry
+        // and must return an empty string the caller can short-circuit
+        // on with `String::is_empty()`.
+        let pattern = CorrectionPattern {
+            user_id: "u1".into(),
+            topic_cluster: "async+auth".into(),
+            pattern_name: "corrections_on_async+auth".into(),
+            learned_from_turns: 0,
+            confidence: 0.0,
+            example_corrections: Vec::new(),
+        };
+        assert_eq!(pattern.as_prompt_addendum(), "");
+    }
+
+    #[test]
+    fn addendum_includes_cluster_and_count_header() {
+        // Header carries the two pieces of context the LLM needs: WHAT
+        // topic cluster these corrections apply to, and HOW MANY turns
+        // they aggregate. Tests the header line specifically so later
+        // format tweaks flag clearly.
+        let pattern = pattern_with_examples(
+            "async+auth",
+            "user_42",
+            &["don't add logging", "stop adding logging", "no more logs"],
+        );
+        let addendum = pattern.as_prompt_addendum();
+        assert!(addendum.starts_with(
+            "Past user corrections on cluster \"async+auth\" (3 similar turns):\n"
+        ));
+    }
+
+    #[test]
+    fn addendum_lists_all_examples_newest_first() {
+        // Ordering contract: newest correction first, matching
+        // `example_corrections` field documentation. This is load-bearing
+        // for the LLM — recent corrections likely reflect the most
+        // current user preference.
+        let pattern = pattern_with_examples(
+            "refactor+auth",
+            "u1",
+            &["first", "second", "third"],
+        );
+        let addendum = pattern.as_prompt_addendum();
+        // Each example appears on its own bullet line, in newest-first
+        // order (third, second, first).
+        assert!(addendum.contains("\n- third\n"));
+        assert!(addendum.contains("\n- second\n"));
+        assert!(addendum.contains("\n- first\n"));
+        let third_pos = addendum.find("- third").expect("newest present");
+        let first_pos = addendum.find("- first").expect("oldest present");
+        assert!(
+            third_pos < first_pos,
+            "newest correction must appear before oldest; addendum was:\n{addendum}"
+        );
+    }
+
+    #[test]
+    fn addendum_ends_with_newline_for_concat() {
+        // Concat-friendly contract: addendum ends with `\n` so
+        // `format!("{addendum}\nUser: ...")` doesn't run the last
+        // bullet line into the caller's text. Tested explicitly because
+        // easy to regress when editing the format.
+        let pattern = pattern_with_examples("c", "u", &["a", "b", "c"]);
+        let addendum = pattern.as_prompt_addendum();
+        assert!(
+            addendum.ends_with('\n'),
+            "addendum must end with newline; got: {addendum:?}"
+        );
     }
 }
