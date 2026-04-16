@@ -1,12 +1,12 @@
 # Regulator Design — Path 2 (Session 15)
 
-Design document for Nous's pivot to **Rust-native reliability infrastructure for LLM agents**. Authored 2026-04-15 after 4-agent research synthesis (SSM ecosystem / Rust LLM ecosystem / agent regulation landscape / SSM-specific tooling) converged on Path 2 with refined framing.
+Design document for Noos's pivot to **Rust-native reliability infrastructure for LLM agents**. Authored 2026-04-15 after 4-agent research synthesis (SSM ecosystem / Rust LLM ecosystem / agent regulation landscape / SSM-specific tooling) converged on Path 2 with refined framing.
 
 **This is a design doc, not a code commit.** Session 15 produces this document + architecture memo + CLAUDE.md positioning update. Implementation starts Session 16.
 
 ## 1. Problem
 
-Current Nous (post-Phase 14):
+Current Noos (post-Phase 14):
 
 - **Downstream signals are fine** — `body_budget`, `conservation`, `confidence`, `strategy`, `recent_quality` all have working infrastructure, documented operating envelopes, test coverage.
 - **Input adapter is wrong** — signals driven by regex on user text (emotional lexicon, topic extraction, structural pattern matching). v3 diagnostic (2026-04-15) confirmed:
@@ -14,7 +14,7 @@ Current Nous (post-Phase 14):
   - `confidence` stuck at 0.5 on gibberish (regex can't detect lexical OOD)
   - `strategy` fires only when warmup > MODERATE_MIN_COUNT (not a bug but undocumented user pitfall)
 
-The signals themselves are valuable (research confirms: MAST NeurIPS 2025, Chroma Context Rot, Agent Drift 2601.04170, Abstention TACL 2025). What Nous reads to build them is the wrong input modality.
+The signals themselves are valuable (research confirms: MAST NeurIPS 2025, Chroma Context Rot, Agent Drift 2601.04170, Abstention TACL 2025). What Noos reads to build them is the wrong input modality.
 
 ## 2. Core change
 
@@ -460,7 +460,7 @@ Resolved as **structural, opaque, language-neutral**. Rejected approach (a):
 English-regex "don't X" → `no_new_X` rule extraction (P9b red flag — duplicates
 cortical work). Shipped approach: `pattern_name = format!("corrections_on_{cluster}")`;
 raw `example_corrections` texts stored for app / LLM to interpret at retrieval
-time. Differentiation vs Mem0/Letta preserved: Nous surfaces patterns
+time. Differentiation vs Mem0/Letta preserved: Noos surfaces patterns
 PROACTIVELY via `Decision::ProceduralWarning` once count threshold trips,
 instead of requiring semantic search per turn.
 

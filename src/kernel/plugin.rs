@@ -11,7 +11,7 @@ use std::sync::Arc;
 
 use async_trait::async_trait;
 
-use crate::errors::NousResult;
+use crate::errors::NoosResult;
 use crate::kernel::events::EventBus;
 
 /// Core kernel services available to plugins during initialization.
@@ -19,7 +19,7 @@ pub struct KernelServices {
     pub events: Arc<EventBus>,
 }
 
-/// The plugin trait — implement this to extend Nous.
+/// The plugin trait — implement this to extend Noos.
 ///
 /// Lifecycle: register → boot (initialize) → running → shutdown (destroy).
 /// Plugin crashes must not crash the kernel (P6 fail-open).
@@ -32,10 +32,10 @@ pub trait SemanticPlugin: Send + Sync {
     fn description(&self) -> &str;
 
     /// Called during kernel boot. Set up subscriptions, load state.
-    async fn initialize(&self, services: &KernelServices) -> NousResult<()>;
+    async fn initialize(&self, services: &KernelServices) -> NoosResult<()>;
 
     /// Called during kernel shutdown. Clean up resources.
-    async fn destroy(&self) -> NousResult<()>;
+    async fn destroy(&self) -> NoosResult<()>;
 
     /// Capabilities this plugin provides (for registry indexing).
     fn capabilities(&self) -> Vec<PluginCapability> {
@@ -157,8 +157,8 @@ mod tests {
         fn version(&self) -> &str { "0.1.0" }
         fn description(&self) -> &str { "A test plugin" }
 
-        async fn initialize(&self, _services: &KernelServices) -> NousResult<()> { Ok(()) }
-        async fn destroy(&self) -> NousResult<()> { Ok(()) }
+        async fn initialize(&self, _services: &KernelServices) -> NoosResult<()> { Ok(()) }
+        async fn destroy(&self) -> NoosResult<()> { Ok(()) }
 
         fn capabilities(&self) -> Vec<PluginCapability> {
             vec![PluginCapability::Theory {

@@ -8,12 +8,12 @@
 //! — the app / LLM interprets the meaning by reading the stored
 //! example texts. This is the P9b-compliant alternative to regex-based
 //! rule extraction ("don't add X" → `no_new_X`), which would embed a
-//! language assumption into Nous.
+//! language assumption into Noos.
 //!
 //! ## Design: content-vs-pattern boundary
 //!
 //! Competitors (Mem0, Letta) store correction CONTENT and retrieve
-//! via semantic search. Nous stores STRUCTURAL metadata: which
+//! via semantic search. Noos stores STRUCTURAL metadata: which
 //! (user, topic) pair has received repeated corrections, how many, with
 //! a bounded list of recent example texts. The app / LLM does the
 //! rule interpretation by reading examples at retrieval time.
@@ -21,7 +21,7 @@
 //! The differentiation holds: a [`CorrectionPattern`]
 //! tells the app "this cluster has received N corrections, here are
 //! examples — consider them before generating." Competitors' memory
-//! layers require semantic search on every relevant turn; Nous surfaces
+//! layers require semantic search on every relevant turn; Noos surfaces
 //! the pattern prospectively via [`Decision::ProceduralWarning`](super::Decision::ProceduralWarning)
 //! once the count threshold trips.
 //!

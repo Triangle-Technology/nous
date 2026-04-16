@@ -6,7 +6,7 @@
 //! three cognitive states (phasic, neutral, tonic) and compares the resulting
 //! logit distributions.
 //!
-//! This is the PROOF that Nous's cognitive algorithms directly modulate how
+//! This is the PROOF that Noos's cognitive algorithms directly modulate how
 //! a real language model processes information — not through text, not through
 //! sampling tricks, but inside the forward pass via delta scaling.
 
@@ -19,7 +19,7 @@ use noos::inference::mamba::{CognitiveMambaModel, HfTokenizer, MambaConfig};
 #[cfg(feature = "candle")]
 use noos::inference::model::LocalModel;
 #[cfg(feature = "candle")]
-use noos::inference::tokenizer::NousTokenizer;
+use noos::inference::tokenizer::NoosTokenizer;
 #[cfg(feature = "candle")]
 use noos::types::intervention::{CognitiveState, DeltaModulation};
 #[cfg(feature = "candle")]
@@ -38,7 +38,7 @@ fn main() {
 
 #[cfg(feature = "candle")]
 fn run() {
-    println!("=== Nous Tầng 2: Real Model Delta Modulation ===\n");
+    println!("=== Noos Tầng 2: Real Model Delta Modulation ===\n");
 
     // HF-format variant has safetensors + tokenizer bundled.
     let model_id = "state-spaces/mamba-130m-hf";
@@ -199,7 +199,7 @@ fn run() {
     println!("\n── Verdict ──\n");
     if phasic_differs && tonic_differs {
         println!("  PROVEN: Delta modulation produces DIFFERENT logit distributions.");
-        println!("  Nous's cognitive state directly modulates how Mamba processes information.");
+        println!("  Noos's cognitive state directly modulates how Mamba processes information.");
         println!("  This is Tầng 2 — cognitive algorithms operating INSIDE the model.");
     } else if phasic_differs || tonic_differs {
         println!("  PARTIAL: One cognitive state changed logits, the other didn't.");

@@ -12,14 +12,14 @@
 use async_trait::async_trait;
 
 use crate::ai::provider::{CompletionRequest, CompletionResponse, StreamChunk};
-use crate::errors::{NousError, NousResult};
+use crate::errors::{NoosError, NoosResult};
 use crate::types::intervention::{
     CognitiveState, InterventionDepth, LogitBias, SamplingOverride,
 };
 
 /// AI provider with intervention support — extends AiProvider with cognitive modulation.
 ///
-/// Models implementing this trait allow Nous's cognitive state to influence
+/// Models implementing this trait allow Noos's cognitive state to influence
 /// generation beyond text I/O. The intervention_depth() method declares what
 /// level of intervention the model supports.
 ///
@@ -40,7 +40,7 @@ pub trait InferenceProvider: Send + Sync {
         &self,
         request: CompletionRequest,
         sampling: SamplingOverride,
-    ) -> NousResult<CompletionResponse>;
+    ) -> NoosResult<CompletionResponse>;
 
     /// Streaming completion with cognitive sampling override.
     async fn stream_with_override(
@@ -48,7 +48,7 @@ pub trait InferenceProvider: Send + Sync {
         request: CompletionRequest,
         sampling: SamplingOverride,
         sender: tokio::sync::mpsc::Sender<StreamChunk>,
-    ) -> NousResult<()>;
+    ) -> NoosResult<()>;
 
     /// Tier 1+: Access raw logit distribution before sampling.
     ///
@@ -59,8 +59,8 @@ pub trait InferenceProvider: Send + Sync {
     async fn get_next_token_logits(
         &self,
         _request: CompletionRequest,
-    ) -> NousResult<Vec<f32>> {
-        Err(NousError::UnsupportedIntervention(format!(
+    ) -> NoosResult<Vec<f32>> {
+        Err(NoosError::UnsupportedIntervention(format!(
             "get_next_token_logits requires {:?}, model supports {:?}",
             InterventionDepth::LogitAccess,
             self.intervention_depth(),

@@ -2,7 +2,7 @@
 //!
 //! These types bridge cognitive state (from convergence loop) to model control
 //! signals (sampling parameters, logit biases). Part of the intervention
-//! architecture that moves Nous from text I/O wrapping to model-internal
+//! architecture that moves Noos from text I/O wrapping to model-internal
 //! modulation.
 //!
 //! See `docs/intervention.md` for the full paradigm.
@@ -42,7 +42,7 @@ pub enum InterventionDepth {
 
 /// Unified cognitive state snapshot — assembled from convergence loop output.
 ///
-/// This is the bridge between Nous's cognitive algorithms and model intervention.
+/// This is the bridge between Noos's cognitive algorithms and model intervention.
 /// After the convergence loop settles, CognitiveState captures the final state
 /// and passes it to intervention hooks that modulate model generation.
 ///
@@ -115,7 +115,7 @@ impl Default for CognitiveState {
 /// These parameters modulate model generation at the sampling level.
 /// Brain analog: neuromodulators (DA, NE, ACh, 5-HT) don't carry specific
 /// information — they change gain, threshold, and sensitivity of neural circuits.
-/// SamplingOverride is Nous's neuromodulatory output.
+/// SamplingOverride is Noos's neuromodulatory output.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SamplingOverride {
     /// Generation temperature. Lower = focused/deterministic, higher = creative/exploratory.

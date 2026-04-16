@@ -6,7 +6,7 @@
 //! 2. Detected strategy from each of the 3 simulated responses (which the
 //!    training path actually records).
 //! 3. `learned.response_strategies` after training (what got stored).
-//! 4. `turn.signals.strategy` for each eval query (what Nous recommends).
+//! 4. `turn.signals.strategy` for each eval query (what Noos recommends).
 //!
 //! Run: `cargo run --example task_eval_diagnose`
 

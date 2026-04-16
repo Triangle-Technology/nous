@@ -43,7 +43,7 @@
 //!   quality, similarity threshold, recall tuning. **No pattern
 //!   extraction** — content is preserved but the behavioral rule is
 //!   not explicit.
-//! - **Nous**: structurally counts per-cluster corrections. Once
+//! - **Noos**: structurally counts per-cluster corrections. Once
 //!   [`MIN_CORRECTIONS_FOR_PATTERN`](noos::CorrectionStore) is reached,
 //!   a [`CorrectionPattern`] is exposed proactively via
 //!   [`Decision::ProceduralWarning`] — no retrieval query, no semantic
@@ -93,7 +93,7 @@ const CANNED_RESPONSES: &[&str] = &[
 /// Correction messages the user sends across Phase 1 turns. Recorded
 /// under the active cluster via `LLMEvent::UserCorrection { corrects_last:
 /// true }`. Note how each phrases the same rule differently — this is
-/// the input Nous extracts a STRUCTURAL pattern from, without parsing
+/// the input Noos extracts a STRUCTURAL pattern from, without parsing
 /// any of them for English "don't X" constructs.
 const CORRECTIONS: &[&str] = &[
     "Don't add docstrings to the refactor output please",

@@ -1,4 +1,4 @@
-# Nous
+# Noos
 
 > Reliability infrastructure for Rust LLM agents — scope drift, cost
 > circuit breaks, and procedural correction memory as a small event-driven
@@ -11,7 +11,7 @@ tokens spent, quality signal when you have one. `Regulator` returns a
 `ProceduralWarning`, or `LowConfidenceSpans`. Your loop branches on the
 variant and keeps moving.
 
-Nothing in Nous wraps your LLM client. There is no framework lock-in and no
+Nothing in Noos wraps your LLM client. There is no framework lock-in and no
 runtime dependency on a specific model. The event surface is a single enum
 your code owns.
 
@@ -24,7 +24,7 @@ patterns from corrections. Scope-drift (the LLM answered a *different*
 question) typically reaches the user and only gets caught if the user
 notices.
 
-Nous surfaces these signals *during* the loop so the app can act before
+Noos surfaces these signals *during* the loop so the app can act before
 delivery — strip drifted material, halt on cost × quality compound,
 consult learned corrections before the next generation.
 
@@ -85,9 +85,9 @@ calls, per-query vs per-task regulator lifetime): see
 | Mem0 / Letta / LangChain mem|     —     |        ✓         |             —              |          —          |                  —                  |
 | Portkey / litellm / OpenRouter|   —     |        —         |             —              |   transport only    |                  —                  |
 | Tenacity / backoff          |     —     |        —         |             —              |          —          |                  —                  |
-| **Nous**                    |     —     |    ✓ structural  |           **✓**            |       **✓**         |                 **✓**               |
+| **Noos**                    |     —     |    ✓ structural  |           **✓**            |       **✓**         |                 **✓**               |
 
-Nous is not a logging layer — pair it with Langfuse / Arize / Helicone if
+Noos is not a logging layer — pair it with Langfuse / Arize / Helicone if
 you want observability on top of the regulatory decisions. The value is
 the real-time decision surface during the loop, not the post-hoc record.
 
@@ -225,7 +225,7 @@ process.
 - [`docs/regulator-guide.md`](docs/regulator-guide.md) — app integrator's
   guide: event ordering, decision handling, gotchas.
 - [`docs/app-contract.md`](docs/app-contract.md) — semantic contract
-  between Nous and your app.
+  between Noos and your app.
 - [`docs/regulator-design.md`](docs/regulator-design.md) — Session 15
   Path 2 design doc.
 - [`principles.md`](principles.md) — 10 design principles any change must

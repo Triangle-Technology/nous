@@ -20,7 +20,7 @@
 //! - `volatility_weight`: widens precision window when environment changes
 //!   (Behrens 2007 — volatile world needs broader priors)
 //!
-//! This is the **single source of gating** in Nous: all other modules read
+//! This is the **single source of gating** in Noos: all other modules read
 //! adaptive thresholds and inherit their priority structure. To add a new
 //! gating rule, register a new threshold with the appropriate profile.
 //!

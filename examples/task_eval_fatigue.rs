@@ -1,4 +1,4 @@
-//! Tier 1.7 fatigue eval — does Nous's combined signal detect late-onset
+//! Tier 1.7 fatigue eval — does Noos's combined signal detect late-onset
 //! quality degradation faster than a rolling-quality-average baseline?
 //!
 //! Run: `cargo run --example task_eval_fatigue`
@@ -7,7 +7,7 @@
 //!
 //! `docs/intervention.md` lists "context rot / fatigue (all 18 frontier
 //! models degrade with length, none detect it — Chroma 2025)" as gap #4.
-//! Nous's claim: `signals.conservation` + `recent_quality` + `rpe` together
+//! Noos's claim: `signals.conservation` + `recent_quality` + `rpe` together
 //! signal "things are degrading" earlier than any single rolling metric.
 //!
 //! Tier 1.7 tests this by simulating an abrupt quality drop mid-stream
@@ -21,8 +21,8 @@
 //! - **Phase 2 (turns 26-50)**: model degrades to low quality (0.40).
 //!   Simulates context rot, attention dilution, model fatigue, etc.
 //!
-//! Both Nous and the smart baseline have access to per-turn quality via
-//! their normal feedback channels. The question: does Nous's compound
+//! Both Noos and the smart baseline have access to per-turn quality via
+//! their normal feedback channels. The question: does Noos's compound
 //! signal cross its decision threshold in FEWER turns post-degradation than
 //! the smart baseline's rolling average crosses its threshold?
 //!
@@ -35,7 +35,7 @@
 //!    switches to abstain when rolling avg drops below threshold. This
 //!    is what an engineer would write — direct quality monitoring.
 //!
-//! 3. **Nous-fatigue**: monitors `signals.conservation` (which integrates
+//! 3. **Noos-fatigue**: monitors `signals.conservation` (which integrates
 //!    body_budget depletion + sustained arousal + resource pressure) AND
 //!    `recent_quality` together. Switches to abstain when either exceeds
 //!    its threshold.
@@ -147,7 +147,7 @@ fn run_smart_baseline() -> RunResult {
     r
 }
 
-// ─── Agent 3: Nous-fatigue (combined conservation + recent_quality) ──────
+// ─── Agent 3: Noos-fatigue (combined conservation + recent_quality) ──────
 
 // Calibration note (fixed 2026-04-14 after first-run bug):
 // `signals.recent_quality` defaults to 0.5 (the EMA initial value); using
@@ -239,29 +239,29 @@ fn main() {
         LOW_QUALITY,
         DEGRADATION_TURN + 1
     );
-    println!("Tests whether Nous detects the degradation in fewer turns than");
+    println!("Tests whether Noos detects the degradation in fewer turns than");
     println!("a rolling-quality-avg baseline (window={}, threshold={:.2}).\n",
         ROLLING_WINDOW, SMART_QUALITY_THRESHOLD);
 
     let naive = run_naive();
     let smart = run_smart_baseline();
-    let nous = run_nous_fatigue();
+    let noos = run_nous_fatigue();
 
     println!("Per-condition results:");
     print_row("naive (reference)", &naive);
     print_row("smart baseline (rolling avg)", &smart);
-    print_row("nous-fatigue", &nous);
+    print_row("noos-fatigue", &noos);
 
     println!("\nPrimary metric — detection latency (lower = caught faster):");
     let smart_latency = smart.detection_latency();
-    let nous_latency = nous.detection_latency();
+    let nous_latency = noos.detection_latency();
     match (smart_latency, nous_latency) {
         (Some(s), Some(n)) if n + 2 <= s => println!(
-            "  ✓ Nous detected in {} turns; smart baseline took {} turns. Nous {} turns earlier.",
+            "  ✓ Noos detected in {} turns; smart baseline took {} turns. Noos {} turns earlier.",
             n, s, s - n
         ),
         (Some(s), Some(n)) if n <= s + 1 && s <= n + 1 => println!(
-            "  ≈ Tied (or near): smart {} turns, nous {} turns post-degradation.",
+            "  ≈ Tied (or near): smart {} turns, noos {} turns post-degradation.",
             s, n
         ),
         (Some(s), Some(n)) => println!(
@@ -269,11 +269,11 @@ fn main() {
             s, n
         ),
         (None, Some(n)) => println!(
-            "  ✓ Nous detected in {} turns; smart baseline never detected.",
+            "  ✓ Noos detected in {} turns; smart baseline never detected.",
             n
         ),
         (Some(s), None) => println!(
-            "  ⚠ Smart detected in {} turns; nous never detected.",
+            "  ⚠ Smart detected in {} turns; noos never detected.",
             s
         ),
         (None, None) => println!("  Neither agent detected the degradation."),
@@ -281,17 +281,17 @@ fn main() {
 
     println!("\nSecondary — harm count (low-quality responses delivered to user):");
     println!(
-        "  naive={}  smart={}  nous={}  (lower = less harm)",
-        naive.harm_count, smart.harm_count, nous.harm_count
+        "  naive={}  smart={}  noos={}  (lower = less harm)",
+        naive.harm_count, smart.harm_count, noos.harm_count
     );
 
     println!("\nNotes:");
-    println!("  • Synthetic late-onset degradation — illustrates whether Nous's");
+    println!("  • Synthetic late-onset degradation — illustrates whether Noos's");
     println!("    combined signal is sensitive enough for fatigue detection.");
-    println!("  • Both Nous and smart baseline see the same quality stream; the");
+    println!("  • Both Noos and smart baseline see the same quality stream; the");
     println!("    test is signal sensitivity, not information access.");
-    println!("  • If Nous detects ≥2 turns earlier than rolling avg, the");
+    println!("  • If Noos detects ≥2 turns earlier than rolling avg, the");
     println!("    combined-signal claim has measurable support on this task.");
-    println!("  • If Nous matches or lags rolling avg, the conservation+recent_quality");
+    println!("  • If Noos matches or lags rolling avg, the conservation+recent_quality");
     println!("    combination is no faster than a direct quality monitor.");
 }

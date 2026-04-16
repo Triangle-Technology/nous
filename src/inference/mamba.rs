@@ -2,7 +2,7 @@
 //!
 //! Brain analog: cortical tissue (Mamba layers) modulated by neuromodulators
 //! (cognitive delta scaling). Hidden state flows sequentially through each
-//! layer — Nous modulates delta (state update speed) at targeted mid-layers,
+//! layer — Noos modulates delta (state update speed) at targeted mid-layers,
 //! directly changing how the model processes information.
 //!
 //! Forked from candle-transformers mamba.rs with cognitive injection point.
@@ -18,7 +18,7 @@
 use candle_core::{DType, Device, IndexOp, Result as CandleResult, Tensor, D};
 use candle_nn::{linear, linear_no_bias, Linear, Module, VarBuilder};
 
-use crate::errors::{NousError, NousResult};
+use crate::errors::{NoosError, NoosResult};
 use crate::inference::bottleneck::BottleneckSteering;
 use crate::inference::cognitive_model::CognitiveModel;
 use crate::inference::model::LocalModel;
@@ -614,14 +614,14 @@ impl CognitiveMambaModel {
 // ═══════════════════════════════════════════════════════════════════
 
 impl LocalModel for CognitiveMambaModel {
-    fn forward(&mut self, tokens: &[u32], _position: usize) -> NousResult<Vec<f32>> {
+    fn forward(&mut self, tokens: &[u32], _position: usize) -> NoosResult<Vec<f32>> {
         // For prompt processing: forward each token sequentially (fill SSM state).
         // For generation: only the last token matters.
         let mut logits = Vec::new();
         for &token in tokens {
             logits = self
                 .forward_with_gains(token, None)
-                .map_err(|e| NousError::Internal(format!("Mamba forward error: {e}")))?;
+                .map_err(|e| NoosError::Internal(format!("Mamba forward error: {e}")))?;
         }
         Ok(logits)
     }
@@ -646,14 +646,14 @@ impl CognitiveModel for CognitiveMambaModel {
         tokens: &[u32],
         _position: usize,
         delta_modulation: &DeltaModulation,
-    ) -> NousResult<ForwardResult> {
+    ) -> NoosResult<ForwardResult> {
         let mut logits = Vec::new();
 
         // Forward each token with cognitive delta modulation.
         for &token in tokens {
             logits = self
                 .forward_with_gains(token, Some(delta_modulation))
-                .map_err(|e| NousError::Internal(format!("Mamba cognitive forward error: {e}")))?;
+                .map_err(|e| NoosError::Internal(format!("Mamba cognitive forward error: {e}")))?;
         }
 
         // Determine which layers were actually modulated.
@@ -691,14 +691,14 @@ impl CognitiveMambaModel {
     ///
     /// Downloads safetensors weights and tokenizer config automatically.
     /// `model_id`: HuggingFace model ID (e.g., "state-spaces/mamba-130m").
-    pub fn from_pretrained(model_id: &str, config: MambaConfig) -> NousResult<Self> {
+    pub fn from_pretrained(model_id: &str, config: MambaConfig) -> NoosResult<Self> {
         let api = hf_hub::api::sync::Api::new()
-            .map_err(|e| NousError::Internal(format!("HF Hub API init error: {e}")))?;
+            .map_err(|e| NoosError::Internal(format!("HF Hub API init error: {e}")))?;
         let repo = api.model(model_id.to_string());
 
         let weights_path = repo
             .get("model.safetensors")
-            .map_err(|e| NousError::Internal(format!("Failed to download weights: {e}")))?;
+            .map_err(|e| NoosError::Internal(format!("Failed to download weights: {e}")))?;
 
         let device = Device::Cpu;
         // P5 exception: candle's mmap API requires unsafe because the memory-mapped file
@@ -707,15 +707,15 @@ impl CognitiveMambaModel {
         // Alternative (safe but slower): candle_core::safetensors::load() copies into memory.
         let vb = unsafe {
             VarBuilder::from_mmaped_safetensors(&[weights_path], DType::F32, &device)
-                .map_err(|e| NousError::Internal(format!("Failed to load safetensors: {e}")))?
+                .map_err(|e| NoosError::Internal(format!("Failed to load safetensors: {e}")))?
         };
 
         Self::new(config, vb)
-            .map_err(|e| NousError::Internal(format!("Failed to construct model: {e}")))
+            .map_err(|e| NoosError::Internal(format!("Failed to construct model: {e}")))
     }
 }
 
-/// HuggingFace tokenizer wrapper implementing NousTokenizer.
+/// HuggingFace tokenizer wrapper implementing NoosTokenizer.
 ///
 /// Wraps the `tokenizers` crate for text ↔ token conversion.
 /// Brain analog: sensory transduction — converting raw input (text)
@@ -727,17 +727,17 @@ pub struct HfTokenizer {
 
 impl HfTokenizer {
     /// Load tokenizer from HuggingFace Hub.
-    pub fn from_pretrained(model_id: &str) -> NousResult<Self> {
+    pub fn from_pretrained(model_id: &str) -> NoosResult<Self> {
         let api = hf_hub::api::sync::Api::new()
-            .map_err(|e| NousError::Internal(format!("HF Hub API init error: {e}")))?;
+            .map_err(|e| NoosError::Internal(format!("HF Hub API init error: {e}")))?;
         let repo = api.model(model_id.to_string());
 
         let tokenizer_path = repo
             .get("tokenizer.json")
-            .map_err(|e| NousError::Internal(format!("Failed to download tokenizer: {e}")))?;
+            .map_err(|e| NoosError::Internal(format!("Failed to download tokenizer: {e}")))?;
 
         let tokenizer = tokenizers::Tokenizer::from_file(tokenizer_path)
-            .map_err(|e| NousError::Internal(format!("Failed to load tokenizer: {e}")))?;
+            .map_err(|e| NoosError::Internal(format!("Failed to load tokenizer: {e}")))?;
 
         // EOS token: GPT-NeoX uses <|endoftext|> (token 0).
         let eos_token_id = tokenizer
@@ -751,22 +751,22 @@ impl HfTokenizer {
     }
 }
 
-impl crate::inference::tokenizer::NousTokenizer for HfTokenizer {
-    fn encode(&self, text: &str, _add_special_tokens: bool) -> NousResult<Vec<u32>> {
+impl crate::inference::tokenizer::NoosTokenizer for HfTokenizer {
+    fn encode(&self, text: &str, _add_special_tokens: bool) -> NoosResult<Vec<u32>> {
         let encoding = self
             .tokenizer
             .encode(text, false)
-            .map_err(|e| NousError::Internal(format!("Tokenization error: {e}")))?;
+            .map_err(|e| NoosError::Internal(format!("Tokenization error: {e}")))?;
         Ok(encoding.get_ids().to_vec())
     }
 
-    fn decode(&self, tokens: &[u32]) -> NousResult<String> {
+    fn decode(&self, tokens: &[u32]) -> NoosResult<String> {
         self.tokenizer
             .decode(tokens, true)
-            .map_err(|e| NousError::Internal(format!("Decode error: {e}")))
+            .map_err(|e| NoosError::Internal(format!("Decode error: {e}")))
     }
 
-    fn decode_token(&self, token: u32) -> NousResult<String> {
+    fn decode_token(&self, token: u32) -> NoosResult<String> {
         self.decode(&[token])
     }
 
@@ -1177,21 +1177,21 @@ impl CognitiveMambaWithGate {
         model_id: &str,
         config: MambaConfig,
         gate_config: CognitiveGateConfig,
-    ) -> NousResult<(Self, candle_nn::VarMap)> {
+    ) -> NoosResult<(Self, candle_nn::VarMap)> {
         let device = Device::Cpu;
 
         // Base model weights from safetensors (frozen — plain Tensors, no Var tracking).
         let api = hf_hub::api::sync::Api::new()
-            .map_err(|e| NousError::Internal(format!("HF Hub API init error: {e}")))?;
+            .map_err(|e| NoosError::Internal(format!("HF Hub API init error: {e}")))?;
         let repo = api.model(model_id.to_string());
         let weights_path = repo
             .get("model.safetensors")
-            .map_err(|e| NousError::Internal(format!("Failed to download weights: {e}")))?;
+            .map_err(|e| NoosError::Internal(format!("Failed to download weights: {e}")))?;
 
         // P5 exception: candle mmap requires unsafe (see CognitiveMambaModel::from_pretrained).
         let base_vb = unsafe {
             VarBuilder::from_mmaped_safetensors(&[weights_path], DType::F32, &device)
-                .map_err(|e| NousError::Internal(format!("Failed to load safetensors: {e}")))?
+                .map_err(|e| NoosError::Internal(format!("Failed to load safetensors: {e}")))?
         };
 
         // Gate weights in VarMap (trainable — gradient tracking via candle Var).
@@ -1208,7 +1208,7 @@ impl CognitiveMambaWithGate {
             config.d_model,
             base_vb.pp("backbone.embeddings"),
         )
-        .map_err(|e| NousError::Internal(format!("Failed to load embedding: {e}")))?;
+        .map_err(|e| NoosError::Internal(format!("Failed to load embedding: {e}")))?;
 
         // Pre-gate layers from base_vb (frozen).
         let mut pre_gate_layers = Vec::with_capacity(gate_pos);
@@ -1216,7 +1216,7 @@ impl CognitiveMambaWithGate {
             pre_gate_layers.push(
                 ResidualBlock::new(i, &config, base_vb.pp(format!("backbone.layers.{i}")))
                     .map_err(|e| {
-                        NousError::Internal(format!("Failed to load pre-gate layer {i}: {e}"))
+                        NoosError::Internal(format!("Failed to load pre-gate layer {i}: {e}"))
                     })?,
             );
         }
@@ -1224,7 +1224,7 @@ impl CognitiveMambaWithGate {
         // CognitiveGate from gate_vb (trainable).
         let cognitive_gate =
             CognitiveGate::new(gate_config.clone(), gate_vb.pp("cognitive_gate")).map_err(|e| {
-                NousError::Internal(format!("Failed to create cognitive gate: {e}"))
+                NoosError::Internal(format!("Failed to create cognitive gate: {e}"))
             })?;
 
         // Post-gate layers from base_vb (frozen).
@@ -1233,13 +1233,13 @@ impl CognitiveMambaWithGate {
             post_gate_layers.push(
                 ResidualBlock::new(i, &config, base_vb.pp(format!("backbone.layers.{i}")))
                     .map_err(|e| {
-                        NousError::Internal(format!("Failed to load post-gate layer {i}: {e}"))
+                        NoosError::Internal(format!("Failed to load post-gate layer {i}: {e}"))
                     })?,
             );
         }
 
         let norm_f = RmsNorm::new(config.d_model, base_vb.pp("backbone.norm_f"))
-            .map_err(|e| NousError::Internal(format!("Failed to load norm_f: {e}")))?;
+            .map_err(|e| NoosError::Internal(format!("Failed to load norm_f: {e}")))?;
 
         let lm_head = match linear_no_bias(config.d_model, padded_vocab, base_vb.pp("lm_head")) {
             Ok(head) => head,
@@ -1250,7 +1250,7 @@ impl CognitiveMambaWithGate {
         };
 
         let state = MambaState::new(&config, 1, &device)
-            .map_err(|e| NousError::Internal(format!("Failed to create state: {e}")))?;
+            .map_err(|e| NoosError::Internal(format!("Failed to create state: {e}")))?;
 
         let model = Self {
             embedding,
@@ -1273,12 +1273,12 @@ impl CognitiveMambaWithGate {
 // ─── Trait implementations for CognitiveMambaWithGate ──────────────
 
 impl LocalModel for CognitiveMambaWithGate {
-    fn forward(&mut self, tokens: &[u32], _position: usize) -> NousResult<Vec<f32>> {
+    fn forward(&mut self, tokens: &[u32], _position: usize) -> NoosResult<Vec<f32>> {
         let mut logits = Vec::new();
         for &token in tokens {
             let (l, _, _) = self
                 .forward_with_gate(token, None)
-                .map_err(|e| NousError::Internal(format!("Mamba+Gate forward error: {e}")))?;
+                .map_err(|e| NoosError::Internal(format!("Mamba+Gate forward error: {e}")))?;
             logits = l;
         }
         Ok(logits)
@@ -1303,14 +1303,14 @@ impl CognitiveModel for CognitiveMambaWithGate {
         tokens: &[u32],
         _position: usize,
         delta_modulation: &DeltaModulation,
-    ) -> NousResult<ForwardResult> {
+    ) -> NoosResult<ForwardResult> {
         let mut logits = Vec::new();
         let mut last_delta_gain = 1.0;
         let mut last_gate_alpha = 0.0;
 
         for &token in tokens {
             let (l, dg, ga) = self.forward_with_gate(token, Some(delta_modulation)).map_err(
-                |e| NousError::Internal(format!("Mamba+Gate cognitive forward error: {e}")),
+                |e| NoosError::Internal(format!("Mamba+Gate cognitive forward error: {e}")),
             )?;
             logits = l;
             last_delta_gain = dg;

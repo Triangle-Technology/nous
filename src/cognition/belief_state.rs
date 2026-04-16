@@ -84,7 +84,7 @@ pub fn update_affect(state: &SharedBeliefState, message: &str) -> AffectState {
 /// Extracts topic cluster candidates from the response. These are used
 /// purely as opaque cluster keys for cross-session strategy learning
 /// (`world_model::consolidate`'s per-cluster success EMA). They are NOT a
-/// claim that Nous is tracking topics cognitively — the model does that.
+/// claim that Noos is tracking topics cognitively — the model does that.
 pub fn update_predictions(response_content: &str) -> Predictions {
     let topics = extract_topics(response_content);
     let next_topics = topics

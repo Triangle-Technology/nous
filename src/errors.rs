@@ -1,13 +1,13 @@
-//! Nous error types — structured errors with context (P5: fail-open ≠ swallow).
+//! Noos error types — structured errors with context (P5: fail-open ≠ swallow).
 //!
-//! Every fallible function returns `Result<T, NousError>`. Callers can
+//! Every fallible function returns `Result<T, NoosError>`. Callers can
 //! `.unwrap_or_default()` for fail-open, or `.inspect_err()` for monitoring.
 
 use thiserror::Error;
 
-/// Top-level error type for all Nous operations.
+/// Top-level error type for all Noos operations.
 #[derive(Debug, Error)]
-pub enum NousError {
+pub enum NoosError {
     /// AI provider returned an error (HTTP, timeout, auth).
     #[error("AI provider error: {provider} — {message}")]
     Provider {
@@ -50,11 +50,11 @@ pub enum NousError {
     Internal(String),
 }
 
-impl From<serde_json::Error> for NousError {
+impl From<serde_json::Error> for NoosError {
     fn from(e: serde_json::Error) -> Self {
         Self::Serialization(e.to_string())
     }
 }
 
 /// Convenience type alias.
-pub type NousResult<T> = Result<T, NousError>;
+pub type NoosResult<T> = Result<T, NoosError>;

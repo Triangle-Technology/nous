@@ -14,7 +14,7 @@
 //! - Yamins & DiCarlo 2016 (deep nets as cortical models)
 //! - Hidden Attention of Mamba Models (ACL 2025: delta = implicit attention)
 
-use crate::errors::NousResult;
+use crate::errors::NoosResult;
 use crate::inference::model::LocalModel;
 use crate::types::intervention::{DeltaModulation, ForwardResult, InterventionDepth};
 
@@ -59,7 +59,7 @@ pub trait CognitiveModel: LocalModel {
         tokens: &[u32],
         position: usize,
         delta_modulation: &DeltaModulation,
-    ) -> NousResult<ForwardResult>;
+    ) -> NoosResult<ForwardResult>;
 
     /// Number of layers in the model (for layer targeting computation).
     fn num_layers(&self) -> usize;
@@ -91,7 +91,7 @@ pub(crate) mod tests {
     }
 
     impl LocalModel for MockCognitiveModel {
-        fn forward(&mut self, tokens: &[u32], position: usize) -> NousResult<Vec<f32>> {
+        fn forward(&mut self, tokens: &[u32], position: usize) -> NoosResult<Vec<f32>> {
             self.inner.forward(tokens, position)
         }
 
@@ -114,7 +114,7 @@ pub(crate) mod tests {
             tokens: &[u32],
             position: usize,
             delta_modulation: &DeltaModulation,
-        ) -> NousResult<ForwardResult> {
+        ) -> NoosResult<ForwardResult> {
             // Get base logits from inner model.
             let logits = self.inner.forward(tokens, position)?;
 

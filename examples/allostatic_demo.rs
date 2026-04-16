@@ -25,7 +25,7 @@ use std::collections::HashMap;
 
 fn main() {
     println!("╔══════════════════════════════════════════════════════════════╗");
-    println!("║  Nous Allostatic Demo — Closed-Loop Allostatic Controller    ║");
+    println!("║  Noos Allostatic Demo — Closed-Loop Allostatic Controller    ║");
     println!("╚══════════════════════════════════════════════════════════════╝\n");
 
     scenario_1_salience_tracking();
@@ -38,7 +38,7 @@ fn main() {
 
     println!("\n╔══════════════════════════════════════════════════════════════╗");
     println!("║  All signals available via turn.signals (CognitiveSignals)   ║");
-    println!("║  Application decides how to act — Nous provides the state.   ║");
+    println!("║  Application decides how to act — Noos provides the state.   ║");
     println!("╚══════════════════════════════════════════════════════════════╝");
 }
 
@@ -243,7 +243,7 @@ fn scenario_5_closed_loop_cost_tracking() {
     if t4.body_budget > t3.body_budget {
         println!("  ✓ Idle cycles restore budget (allostatic recovery)");
     }
-    println!("  ✓ Loop closed: Nous senses its own resource consumption");
+    println!("  ✓ Loop closed: Noos senses its own resource consumption");
 }
 
 /// Scenario 6: Failure detection via recent_quality + rpe.
@@ -316,7 +316,7 @@ fn scenario_7_memory_informs_decisions() {
     println!("Pre-loaded atoms + sync hybrid_recall + CognitiveSignals\n");
 
     // Simulate atoms the application pre-loaded from its persistent store.
-    // In production, this is an async DB query — but Nous only sees the
+    // In production, this is an async DB query — but Noos only sees the
     // result as a Vec<MemoryAtom>, sync.
     let past_atoms = vec![
         make_demo_atom("m1", "User asked about Rust async patterns.",
@@ -362,7 +362,7 @@ fn scenario_7_memory_informs_decisions() {
     println!("\n  App decision: {}", decision);
 
     println!("\n  ✓ Memory API composes with signals in one sync call tree");
-    println!("  ✓ Apps own async I/O (DB loads); Nous owns sync cognitive computation");
+    println!("  ✓ Apps own async I/O (DB loads); Noos owns sync cognitive computation");
     println!("  Note: for precise retrieval provide query embeddings — topic-only is coarse.");
 }
 

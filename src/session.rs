@@ -209,11 +209,11 @@ impl CognitiveSession {
     /// Closes the open loop: previously `body_budget` only depleted from
     /// user-input signals (arousal, PE). Now the application can report
     /// actual resource consumption (tokens, latency, API calls — normalized
-    /// to [0, 1]), making Nous sense its own cost.
+    /// to [0, 1]), making Noos sense its own cost.
     ///
     /// `cost`: [0, 1] normalized effort. 0 = trivial (cached response).
     /// 1 = exhausting (long reasoning chain, many tool calls). Application
-    /// decides the normalization — Nous uses the scalar as an effort signal.
+    /// decides the normalization — Noos uses the scalar as an effort signal.
     ///
     /// Brain analog: anterior cingulate cortex (ACC) effort monitoring +
     /// hypothalamic metabolic cost tracking. The organism senses caloric
@@ -284,7 +284,7 @@ impl CognitiveSession {
 
     /// Export learned state for cross-session persistence.
     ///
-    /// Returns a serializable snapshot of everything Nous learned this session:
+    /// Returns a serializable snapshot of everything Noos learned this session:
     /// threat associations (Pavlovian), strategy success rates (striatal EMA),
     /// response calibration, LC gain mode.
     ///

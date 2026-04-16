@@ -1,7 +1,7 @@
 //! Allostatic Signals — application-facing cognitive state summary.
 //!
 //! Translates internal cognitive state into actionable application decisions.
-//! The bridge between Nous's non-cortical processing and the application layer.
+//! The bridge between Noos's non-cortical processing and the application layer.
 //!
 //! ## Brain analog
 //!
@@ -12,7 +12,7 @@
 //!
 //! Barrett 2025 (Neuron): allostasis is the brain's primary function. All other
 //! cognition serves body-budget regulation. CognitiveSignals implements this:
-//! Nous's cognitive processing serves the SYSTEM's adaptive functioning.
+//! Noos's cognitive processing serves the SYSTEM's adaptive functioning.
 //!
 //! ## Gating (P10)
 //!

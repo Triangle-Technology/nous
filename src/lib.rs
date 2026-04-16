@@ -1,4 +1,4 @@
-//! # Nous — Reliability infrastructure for Rust LLM agents
+//! # Noos — Reliability infrastructure for Rust LLM agents
 //!
 //! [`Regulator`] sits between your agent's retry loop and your LLM. Every
 //! turn, you emit a handful of events — user message, LLM response,
@@ -7,7 +7,7 @@
 //! `ProceduralWarning`, or `LowConfidenceSpans`. Your loop branches on
 //! the variant and keeps moving.
 //!
-//! Nothing in Nous wraps your LLM client. There is no framework lock-in
+//! Nothing in Noos wraps your LLM client. There is no framework lock-in
 //! and no runtime dependency on a specific model. The event surface is a
 //! single enum your code owns.
 //!
@@ -42,7 +42,7 @@
 //!
 //! See `docs/regulator-guide.md` for the full event contract, decision
 //! handling recipes, and gotchas; `docs/app-contract.md` for the semantic
-//! contract between Nous and your application.
+//! contract between Noos and your application.
 //!
 //! ## Advanced: direct cognitive-session access
 //!
@@ -82,7 +82,7 @@ pub use regulator::cost::CostAccumulator;
 pub use regulator::scope::ScopeTracker;
 pub use regulator::token_stats::TokenStatsAccumulator;
 
-pub use errors::{NousError, NousResult};
+pub use errors::{NoosError, NoosResult};
 
 // ── Advanced: direct cognitive-session access ────────────────────────────
 //
@@ -104,7 +104,7 @@ pub use cognition::delta_modulation::compute_delta_modulation;
 pub use cognition::intervention::{build_cognitive_state, compute_sampling_override};
 pub use cognition::signals::compute_signals;
 
-// Memory system — applications own async I/O, Nous provides sync cognitive
+// Memory system — applications own async I/O, Noos provides sync cognitive
 // computation over pre-loaded atoms (P4 trait boundary). Used by
 // `CognitiveSession` for recall; `Regulator` does not touch this path.
 pub use memory::retrieval::{hybrid_recall, ActivatedAtom, ActivationSource, RecallOptions};

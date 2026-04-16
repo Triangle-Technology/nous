@@ -60,7 +60,7 @@ pub struct TopicBeliefs {
 /// After the 2026-04-11 audit only `next_topics` is retained. It is used as
 /// an opaque cluster-key hash for cross-session strategy-success EMA lookup
 /// in `world_model::consolidate` (dorsomedial striatum analog, Daw 2005).
-/// It is NOT a claim that Nous tracks topics cognitively — the model does
+/// It is NOT a claim that Noos tracks topics cognitively — the model does
 /// that natively via attention.
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct Predictions {

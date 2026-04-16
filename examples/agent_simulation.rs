@@ -6,16 +6,16 @@
 //!
 //! 1. **Naive** — uses one strategy, never adapts. Reference low bar showing
 //!    what "zero adaptation" looks like.
-//! 2. **Simple retry** — app-level quality-threshold rotation. No Nous.
+//! 2. **Simple retry** — app-level quality-threshold rotation. No Noos.
 //!    Pure `if quality < 0.5: next_strategy` logic. THIS IS THE FAIR BASELINE:
-//!    what a reasonable application does without Nous.
-//! 3. **Allostatic warm** — Nous CognitiveSession with imported LearnedState
+//!    what a reasonable application does without Noos.
+//! 3. **Allostatic warm** — Noos CognitiveSession with imported LearnedState
 //!    from a prior "training" session. Demonstrates cross-session value:
 //!    learned recommendation from a prior session skips the discovery phase.
 //!
 //! ## What this demo is honest about
 //!
-//! Within a single cold session, Nous's signal-driven rotation reduces to the
+//! Within a single cold session, Noos's signal-driven rotation reduces to the
 //! same logic as (2). The allostatic claim is about persistence across
 //! sessions — exported LearnedState lets a new session start pre-calibrated.
 //! Without an export/import step, there is no cross-session story, and the
@@ -130,10 +130,10 @@ fn run_naive_agent(turns: usize) -> AgentResult {
     }
 }
 
-// ─── Agent 2: Simple retry (fair baseline — NO Nous) ──────────────────────
+// ─── Agent 2: Simple retry (fair baseline — NO Noos) ──────────────────────
 //
-// What a minimally-competent application does without any Nous: on low
-// quality, rotate to the next strategy. This is the bar Nous must beat to
+// What a minimally-competent application does without any Noos: on low
+// quality, rotate to the next strategy. This is the bar Noos must beat to
 // claim allostatic value.
 
 const QUALITY_THRESHOLD_FOR_RETRY: f64 = 0.5;
@@ -147,7 +147,7 @@ fn run_simple_retry_agent(turns: usize) -> AgentResult {
     let mut last_quality: Option<f64> = None;
 
     for turn_num in 0..turns {
-        // App-level retry logic. No Nous.
+        // App-level retry logic. No Noos.
         if let Some(q) = last_quality {
             if q < QUALITY_THRESHOLD_FOR_RETRY {
                 current_strategy = current_strategy.next();
@@ -177,7 +177,7 @@ fn run_simple_retry_agent(turns: usize) -> AgentResult {
 //
 // Simulates a previous session where the user asked similar questions and
 // StepByStep succeeded. The app knows the task is numerical-debugging and
-// chose StepByStep; Nous observed success and built reward learning. At the
+// chose StepByStep; Noos observed success and built reward learning. At the
 // end, we export LearnedState for the next session to import.
 
 fn train_prior_session() -> LearnedState {
@@ -195,10 +195,10 @@ fn train_prior_session() -> LearnedState {
     session.export_learned()
 }
 
-// ─── Agent 3: Allostatic warm-start (Nous with imported learning) ─────────
+// ─── Agent 3: Allostatic warm-start (Noos with imported learning) ─────────
 //
-// This is where Nous's genuine cross-session value should appear: the prior
-// session's exported LearnedState, imported into a new session, lets Nous
+// This is where Noos's genuine cross-session value should appear: the prior
+// session's exported LearnedState, imported into a new session, lets Noos
 // recommend StepByStep on turn 1 instead of discovering it.
 
 fn run_allostatic_warm_agent(turns: usize, prior_learned: LearnedState) -> AgentResult {
@@ -213,7 +213,7 @@ fn run_allostatic_warm_agent(turns: usize, prior_learned: LearnedState) -> Agent
     for turn_num in 0..turns {
         let turn = session.process_message("Help me debug this numerical issue.");
 
-        // Prefer Nous's learned recommendation. Falls back to app-level retry
+        // Prefer Noos's learned recommendation. Falls back to app-level retry
         // (same logic as simple_retry agent) when no recommendation yet.
         if let Some(recommended) = turn.signals.strategy {
             current_strategy = map_recommendation(recommended, current_strategy);
@@ -263,8 +263,8 @@ fn main() {
     println!("╚══════════════════════════════════════════════════════════════╝\n");
     println!("Task: Numerical debugging (only StepByStep strategy succeeds).");
     println!("Each agent gets 10 attempts on the same persistent problem.\n");
-    println!("This demo compares Nous against a FAIR baseline (simple retry)");
-    println!("— not a straw man. Nous's claim to value rides on beating");
+    println!("This demo compares Noos against a FAIR baseline (simple retry)");
+    println!("— not a straw man. Noos's claim to value rides on beating");
     println!("simple retry, not on beating zero-adaptation.\n");
 
     let turns = 10;
@@ -283,9 +283,9 @@ fn main() {
 
     print_agent_trace("Naive (reference)", &naive);
     println!();
-    print_agent_trace("Simple retry (fair baseline, no Nous)", &simple_retry);
+    print_agent_trace("Simple retry (fair baseline, no Noos)", &simple_retry);
     println!();
-    print_agent_trace("Allostatic warm (Nous + imported LearnedState)", &allostatic_warm);
+    print_agent_trace("Allostatic warm (Noos + imported LearnedState)", &allostatic_warm);
 
     println!("\n╔══════════════════════════════════════════════════════════════╗");
     println!("║  Summary                                                     ║");
@@ -350,10 +350,10 @@ fn main() {
     }
 
     println!("\n  Honesty notes:");
-    println!("  • Comparing to 'naive' alone overstates Nous's value — naive does no");
+    println!("  • Comparing to 'naive' alone overstates Noos's value — naive does no");
     println!("    adaptation at all. Simple retry is the fair bar.");
     println!("  • Cold-session allostatic would behave roughly like simple retry.");
-    println!("    Nous's allostatic value story is CROSS-session, not intra-session.");
+    println!("    Noos's allostatic value story is CROSS-session, not intra-session.");
     println!("  • This is a synthetic, deterministic task. Real validation needs");
     println!("    task-level eval on a real benchmark. See docs/task-eval-design.md.");
 }

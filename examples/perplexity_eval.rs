@@ -1,4 +1,4 @@
-//! Perplexity Eval — Does Nous Actually Help?
+//! Perplexity Eval — Does Noos Actually Help?
 //!
 //! Run: `cargo run --features candle --example perplexity_eval`
 //!
@@ -21,7 +21,7 @@ use noos::inference::mamba::{compute_hs_stats, CognitiveMambaModel, HfTokenizer,
 #[cfg(feature = "candle")]
 use noos::inference::model::LocalModel;
 #[cfg(feature = "candle")]
-use noos::inference::tokenizer::NousTokenizer;
+use noos::inference::tokenizer::NoosTokenizer;
 #[cfg(feature = "candle")]
 use noos::math::softmax::softmax_f32;
 #[cfg(feature = "candle")]
@@ -42,7 +42,7 @@ fn main() {
 
 #[cfg(feature = "candle")]
 fn run() {
-    println!("=== Nous Perplexity Eval: Three-Way Comparison ===\n");
+    println!("=== Noos Perplexity Eval: Three-Way Comparison ===\n");
     println!("Baseline (no modulation) vs Regex (emotional.rs) vs HS (hidden state churn)\n");
 
     let model_id = "state-spaces/mamba-130m-hf";

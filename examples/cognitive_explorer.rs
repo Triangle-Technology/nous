@@ -1,8 +1,8 @@
-//! Cognitive Explorer — interactive demo of Nous's cognitive pipeline.
+//! Cognitive Explorer — interactive demo of Noos's cognitive pipeline.
 //!
 //! Run: `cargo run --example cognitive_explorer`
 //!
-//! Type messages and watch how Nous's brain reacts:
+//! Type messages and watch how Noos's brain reacts:
 //! - Emotional arousal rises on stressed/excited input
 //! - Body budget depletes under sustained stress
 //! - Gain mode shifts between focused (phasic) and exploratory (tonic)
@@ -13,7 +13,7 @@ use noos::session::CognitiveSession;
 use std::io::{self, BufRead, Write};
 
 fn main() {
-    println!("=== Nous Cognitive Explorer ===");
+    println!("=== Noos Cognitive Explorer ===");
     println!("Type messages to see cognitive state. Type 'quit' to exit.");
     println!("After each message, type a simulated response quality (0.0-1.0) or press Enter to skip.\n");
 

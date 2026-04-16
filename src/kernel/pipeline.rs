@@ -10,7 +10,7 @@ use std::time::Instant;
 use crate::ai::provider::{
     AiProvider, CompletionRequest, MessageRole, ProviderMessage,
 };
-use crate::errors::{NousError, NousResult};
+use crate::errors::{NoosError, NoosResult};
 use crate::kernel::events::{EventBus, PipelineDoneEvent, PipelineStepEvent};
 
 // ── Types ──────────────────────────────────────────────────────────────
@@ -70,7 +70,7 @@ pub async fn execute_pipeline(
     input: &str,
     ai: &dyn AiProvider,
     events: Option<&EventBus>,
-) -> NousResult<PipelineResult> {
+) -> NoosResult<PipelineResult> {
     let pipeline_start = Instant::now();
     let mut step_results = Vec::new();
     let mut current_input = input.to_string();
@@ -100,7 +100,7 @@ pub async fn execute_pipeline(
             stream: false,
         };
 
-        let response = ai.complete(request).await.map_err(|e| NousError::Pipeline {
+        let response = ai.complete(request).await.map_err(|e| NoosError::Pipeline {
             composition_id: config.composition_id.clone(),
             step: i,
             message: e.to_string(),
@@ -167,7 +167,7 @@ mod tests {
             AiProviderType::Local
         }
 
-        async fn complete(&self, _request: CompletionRequest) -> NousResult<CompletionResponse> {
+        async fn complete(&self, _request: CompletionRequest) -> NoosResult<CompletionResponse> {
             Ok(CompletionResponse {
                 text: self.response.clone(),
                 usage: TokenUsage::default(),
@@ -179,7 +179,7 @@ mod tests {
             &self,
             _request: CompletionRequest,
             sender: tokio::sync::mpsc::Sender<StreamChunk>,
-        ) -> NousResult<()> {
+        ) -> NoosResult<()> {
             let _ = sender.send(StreamChunk::TextDelta(self.response.clone())).await;
             let _ = sender.send(StreamChunk::Done).await;
             Ok(())

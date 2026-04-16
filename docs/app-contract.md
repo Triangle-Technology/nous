@@ -1,6 +1,6 @@
-# Nous ↔ Application Contract
+# Noos ↔ Application Contract
 
-Specifies the semantic agreement between Nous (library) and the application that embeds it. Type signatures describe shape; this document describes **meaning**. Without a shared interpretation of `body_budget = 0.7` or `signals.conservation > X`, two apps using the same Nous version will diverge.
+Specifies the semantic agreement between Noos (library) and the application that embeds it. Type signatures describe shape; this document describes **meaning**. Without a shared interpretation of `body_budget = 0.7` or `signals.conservation > X`, two apps using the same Noos version will diverge.
 
 Scope: `CognitiveSession` API (`src/session.rs`), `CognitiveSignals` (`src/cognition/signals.rs`), `LearnedState` (`src/types/world.rs`).
 
@@ -8,7 +8,7 @@ Versioned against: Phase 7 (2026-04-14). Break-compat changes to this contract s
 
 ---
 
-## 1. CognitiveSignals — reading Nous state
+## 1. CognitiveSignals — reading Noos state
 
 Signals are the primary application-facing interface. Each is a **decision-oriented scalar**, not a status report. Apps use them to gate behavior.
 
@@ -32,7 +32,7 @@ The design intent: conservation fires when cost AND poor outcomes BOTH apply, no
 | 0.30 – 0.50 | Consider shallower paths. Stress sustained, some budget pressure. |
 | 0.50+ | Conservation mode. Cost AND outcomes both bad. Defer non-critical work, stop agent loops, surface to user. |
 
-**Thresholds are app choices, not Nous guarantees.** Nous does not promise that a given value means the same thing across two runs — it reflects the convolution of several internal signals. Apps that hard-code thresholds should document them and ideally measure the observed range on their own workload before setting decision points.
+**Thresholds are app choices, not Noos guarantees.** Noos does not promise that a given value means the same thing across two runs — it reflects the convolution of several internal signals. Apps that hard-code thresholds should document them and ideally measure the observed range on their own workload before setting decision points.
 
 **Calibration note**: the threshold where `budget_factor` activates is at `threshold_body_budget_conservation` (base 0.70, adaptive). See `src/cognition/adaptive_thresholds.rs` for the calibration rationale; the bug-fix trail that made this signal usable lives in the project's private session memos.
 
@@ -40,13 +40,13 @@ The design intent: conservation fires when cost AND poor outcomes BOTH apply, no
 
 Empirical guidance from `examples/task_eval_budget_sweep.rs` (24-query mixed workload across budget caps 4.0 → 20.0):
 
-- **Tight budget regime** (≤ ~0.33 effort units per query): Nous's conservation + reward-learning combo wins on BOTH absolute quality AND quality-per-cost vs a competent app-level cost-tracker. Use Nous unconditionally.
-- **Mid budget regime** (~0.33-0.67 effort units per query): Nous wins on absolute quality (peaked +5.59 vs cost-tracker baseline at budget=8 over 24 queries), but a cost-only tracker may edge on quality-per-cost. Pick by what you optimize for.
-- **Loose budget regime** (≥ ~0.67 effort units per query): both agents converge — there's no budget pressure for conservation to act on. Nous's allostatic overhead is unjustified by quality lift in this regime.
+- **Tight budget regime** (≤ ~0.33 effort units per query): Noos's conservation + reward-learning combo wins on BOTH absolute quality AND quality-per-cost vs a competent app-level cost-tracker. Use Noos unconditionally.
+- **Mid budget regime** (~0.33-0.67 effort units per query): Noos wins on absolute quality (peaked +5.59 vs cost-tracker baseline at budget=8 over 24 queries), but a cost-only tracker may edge on quality-per-cost. Pick by what you optimize for.
+- **Loose budget regime** (≥ ~0.67 effort units per query): both agents converge — there's no budget pressure for conservation to act on. Noos's allostatic overhead is unjustified by quality lift in this regime.
 
-The general shape: Nous's quality advantage is largest in the moderately-tight regime where the cost-tracker baseline downshifts prematurely (at budget/2) but Nous's depletion signal correctly recognizes that high-quality responses are replenishing capacity. Apps should benchmark on their own workload distribution to find their operating regime. The full sweep table lives in the project's private session memos.
+The general shape: Noos's quality advantage is largest in the moderately-tight regime where the cost-tracker baseline downshifts prematurely (at budget/2) but Noos's depletion signal correctly recognizes that high-quality responses are replenishing capacity. Apps should benchmark on their own workload distribution to find their operating regime. The full sweep table lives in the project's private session memos.
 
-**Invariant Nous guarantees**: within a session, `conservation` rises monotonically when stressed inputs arrive and `idle_cycle` isn't called. It falls after `idle_cycle`. The direction of change is meaningful; the absolute value is relative.
+**Invariant Noos guarantees**: within a session, `conservation` rises monotonically when stressed inputs arrive and `idle_cycle` isn't called. It falls after `idle_cycle`. The direction of change is meaningful; the absolute value is relative.
 
 ### 1.2 `salience: f64` (range [0, 1])
 
@@ -61,11 +61,11 @@ The general shape: Nous's quality advantage is largest in the moderately-tight r
 | 0.6 – 0.8 | Prioritize. Deeper reasoning, preserve context. |
 | 0.8 – 1.0 | Urgent / novel. Top-priority handling, minimize delay. |
 
-**Invariant**: high salience → Nous internally suppresses breadth-oriented signals (P10 gating). The signal is produced after that internal suppression has settled.
+**Invariant**: high salience → Noos internally suppresses breadth-oriented signals (P10 gating). The signal is produced after that internal suppression has settled.
 
 ### 1.3 `confidence: f64` (range [0, 1])
 
-**Meaning**: how reliable Nous thinks its own current assessment is. Derived from gate classification confidence, reduced by PE volatility (unstable environment → trust less).
+**Meaning**: how reliable Noos thinks its own current assessment is. Derived from gate classification confidence, reduced by PE volatility (unstable environment → trust less).
 
 **Suggested app interpretation**:
 
@@ -75,11 +75,11 @@ The general shape: Nous's quality advantage is largest in the moderately-tight r
 | 0.4 – 0.7 | Proceed normally. |
 | 0.7 – 1.0 | High trust. Commit, move fast. |
 
-**What `confidence` is NOT**: this is not the model's confidence in its own output (that's a different signal, requires logit entropy from inference). This is Nous's meta-confidence in its own classification of the turn.
+**What `confidence` is NOT**: this is not the model's confidence in its own output (that's a different signal, requires logit entropy from inference). This is Noos's meta-confidence in its own classification of the turn.
 
 ### 1.4 `strategy: Option<ResponseStrategy>`
 
-**Meaning**: `Some(strategy)` = Nous has learned that `strategy` has succeeded on semantically-similar prior turns (cluster hash match via `detector::build_topic_cluster`). `None` = insufficient data, no recommendation.
+**Meaning**: `Some(strategy)` = Noos has learned that `strategy` has succeeded on semantically-similar prior turns (cluster hash match via `detector::build_topic_cluster`). `None` = insufficient data, no recommendation.
 
 **Contract**: `Some` is emitted only after the reward learning loop has accumulated ≥ RECOMMENDATION_MIN_SAMPLES samples for this cluster AND success rate exceeds the threshold. Values earlier are `None`.
 
@@ -89,7 +89,7 @@ The general shape: Nous's quality advantage is largest in the moderately-tight r
 
 Mitigation: keep app-controlled IDs out of the user-facing template (handle them metadata-side), or use IDs ≤ 2 chars consistently so they're always filtered, or use ≥ 3-char IDs consistently. Ad-hoc mixing breaks cross-session matching.
 
-**Minimum-observations threshold pitfall** (surfaced 2026-04-15 in `task_eval_real_llm_multi_signal.rs`): `RECOMMENDATION_MIN_SAMPLES` above is not a single constant — it's the `MODERATE_MIN_COUNT = 5` in `types/world.rs` (plus `MODERATE_MIN_SUCCESS = 0.5`). **For `signals.strategy` to be `Some`, each cluster must have at least 5 successful observations of the same strategy before the eval starts.** Apps warming up `LearnedState` for N clusters need ≥ 5N warmup turns (one per cluster per round × 5 rounds, or 5 turns per cluster). Under-warming produces `signals.strategy = None` for every eval turn, silently disabling Nous's cross-session reward learning advantage. Observed: `task_eval_real_llm_multi_signal.rs` v2 with 2 rounds produced count=2 per cluster → `strategy` was None on every turn across 3 seeds; v3 with 6 rounds → `strategy` fires correctly on pre-trained clusters.
+**Minimum-observations threshold pitfall** (surfaced 2026-04-15 in `task_eval_real_llm_multi_signal.rs`): `RECOMMENDATION_MIN_SAMPLES` above is not a single constant — it's the `MODERATE_MIN_COUNT = 5` in `types/world.rs` (plus `MODERATE_MIN_SUCCESS = 0.5`). **For `signals.strategy` to be `Some`, each cluster must have at least 5 successful observations of the same strategy before the eval starts.** Apps warming up `LearnedState` for N clusters need ≥ 5N warmup turns (one per cluster per round × 5 rounds, or 5 turns per cluster). Under-warming produces `signals.strategy = None` for every eval turn, silently disabling Noos's cross-session reward learning advantage. Observed: `task_eval_real_llm_multi_signal.rs` v2 with 2 rounds produced count=2 per cluster → `strategy` was None on every turn across 3 seeds; v3 with 6 rounds → `strategy` fires correctly on pre-trained clusters.
 
 Mitigation: verify `warm.response_strategies.values().any(|m| m.values().any(|e| e.count >= 5))` before the eval runs, OR warm each expected cluster explicitly ≥ 5 times. For interactive apps that can't pre-train, expect `signals.strategy = None` for the first ~5 turns per new topic cluster — this is by design (habit-formation threshold per Graybiel 2008, not a bug).
 
@@ -140,7 +140,7 @@ Mitigation: verify `warm.response_strategies.values().any(|m| m.values().any(|e|
 For `body_budget` to be meaningful, the application **must** call `track_cost` with honest values after each turn. If the app doesn't:
 
 - Stress events will still deplete the budget (via `perceive`), so the signal will drift meaningfully.
-- BUT the resource-management story ("Nous senses its own cost") breaks — nothing ties `body_budget` to actual resource consumption.
+- BUT the resource-management story ("Noos senses its own cost") breaks — nothing ties `body_budget` to actual resource consumption.
 - `signals.conservation` will underestimate real depletion when the app is doing expensive work but not reporting it.
 
 **Rule of thumb for `cost` value**:
@@ -152,7 +152,7 @@ For `body_budget` to be meaningful, the application **must** call `track_cost` w
 | Long reasoning chain / multiple tool calls | 0.5 – 0.8 |
 | Exhaustive search / many API calls | 0.8 – 1.0 |
 
-App chooses its own normalization. Nous uses the scalar as an effort signal (`COST_DEPLETION_RATE = 0.02` per unit — defined in `src/session.rs`).
+App chooses its own normalization. Noos uses the scalar as an effort signal (`COST_DEPLETION_RATE = 0.02` per unit — defined in `src/session.rs`).
 
 ### 2.4 What `body_budget` is NOT
 
@@ -173,11 +173,11 @@ App chooses its own normalization. Nous uses the scalar as an effort signal (`CO
 
 ### 3.1 Who owns it
 
-**Nous owns**: the *content* — the computation of what goes into each field.
+**Noos owns**: the *content* — the computation of what goes into each field.
 
 **Application owns**: the *persistence* — serializing to disk / database, restoring at session start, deleting on user request, ensuring privacy compliance.
 
-Nous never writes to the filesystem or network. Nous exposes `export_learned() → LearnedState` and `import_learned(LearnedState)`. Everything in between is the application's responsibility.
+Noos never writes to the filesystem or network. Noos exposes `export_learned() → LearnedState` and `import_learned(LearnedState)`. Everything in between is the application's responsibility.
 
 ### 3.2 Privacy obligations (application side)
 
@@ -187,7 +187,7 @@ Nous never writes to the filesystem or network. Nous exposes `export_learned() �
 - Offer deletion in line with your privacy policy.
 - Do not ship `LearnedState` between users.
 
-Nous provides no cross-user isolation — that is an application concern.
+Noos provides no cross-user isolation — that is an application concern.
 
 ### 3.3 Versioning
 
@@ -195,9 +195,9 @@ Nous provides no cross-user isolation — that is an application concern.
 
 - Adding fields with `#[serde(default)]` is backward-compatible.
 - Renaming or removing fields is breaking.
-- Applications SHOULD tag persisted snapshots with the Nous library version and reject mismatched imports rather than silently losing data.
+- Applications SHOULD tag persisted snapshots with the Noos library version and reject mismatched imports rather than silently losing data.
 
-Nous provides no migration facility today.
+Noos provides no migration facility today.
 
 ---
 
@@ -229,12 +229,12 @@ Applications with multiple concurrent conversations own their own session-per-co
 
 ---
 
-## 6. What Nous does NOT promise
+## 6. What Noos does NOT promise
 
 To bound expectations:
 
 - **No fairness claim about signals.** `conservation > 0.5` does not predict task failure at a calibrated rate. Task-eval hasn't been run.
-- **No time bounds.** Nous is designed for <25ms per turn but this is not contractual. Worst-case convergence is 5 iterations + clamp.
+- **No time bounds.** Noos is designed for <25ms per turn but this is not contractual. Worst-case convergence is 5 iterations + clamp.
 - **No ordering guarantee between sessions.** Two sessions with the same inputs and the same imported `LearnedState` will produce the same signals. But the moment `track_cost` or `process_response` quality values differ, state diverges.
 - **No recovery from invalid input.** Clamping bounds are safety rails (CR4), not correctness guarantees. Passing `quality = 2.0` gets clamped to 1.0 silently — but downstream RPE math still runs on the clamped value.
 

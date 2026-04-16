@@ -6,17 +6,17 @@
 //! Key papers: Wolpert 1997 (forward models in motor control),
 //! Doya 1999 (modulatory systems in sensorimotor loops).
 //!
-//! This is where Nous and the model become ONE system — same process,
+//! This is where Noos and the model become ONE system — same process,
 //! same memory space. See `docs/intervention.md` Tier 1.
 //!
 //! Performance: per-token = model.forward() + sampler.sample() (~10-500ms).
 
 use crate::cognition::delta_modulation::compute_delta_modulation;
-use crate::errors::{NousError, NousResult};
+use crate::errors::{NoosError, NoosResult};
 use crate::inference::cognitive_model::CognitiveModel;
 use crate::inference::model::LocalModel;
 use crate::inference::sampler::CognitiveSampler;
-use crate::inference::tokenizer::NousTokenizer;
+use crate::inference::tokenizer::NoosTokenizer;
 use crate::types::intervention::{CognitiveState, DeltaModulation};
 
 /// Result of generating a single token.
@@ -38,7 +38,7 @@ pub struct GenerationStep {
 /// - Real inference (CandleModel + HfTokenizer) in production
 /// - Mock inference (MockModel + MockTokenizer) in tests
 /// - Any future backend (ONNX, TensorRT, etc.)
-pub struct InferenceEngine<M: LocalModel, T: NousTokenizer> {
+pub struct InferenceEngine<M: LocalModel, T: NoosTokenizer> {
     /// The model — cortical tissue.
     model: M,
     /// The tokenizer — sensory encoder/decoder.
@@ -51,7 +51,7 @@ pub struct InferenceEngine<M: LocalModel, T: NousTokenizer> {
     prompt_tokens: Vec<u32>,
 }
 
-impl<M: LocalModel, T: NousTokenizer> InferenceEngine<M, T> {
+impl<M: LocalModel, T: NoosTokenizer> InferenceEngine<M, T> {
     /// Create a new inference engine.
     pub fn new(model: M, tokenizer: T) -> Self {
         Self {
@@ -66,10 +66,10 @@ impl<M: LocalModel, T: NousTokenizer> InferenceEngine<M, T> {
     /// Mutable: populates KV cache, initializes position and prompt tokens.
     /// Requires mutation because the model's KV cache must persist across
     /// subsequent generate_next() calls for attention context.
-    pub fn set_prompt(&mut self, text: &str) -> NousResult<()> {
+    pub fn set_prompt(&mut self, text: &str) -> NoosResult<()> {
         let tokens = self.tokenizer.encode(text, true)?;
         if tokens.is_empty() {
-            return Err(NousError::Internal("Empty prompt after tokenization".into()));
+            return Err(NoosError::Internal("Empty prompt after tokenization".into()));
         }
 
         // Forward pass on full prompt to fill KV cache.
@@ -96,13 +96,13 @@ impl<M: LocalModel, T: NousTokenizer> InferenceEngine<M, T> {
     pub fn generate_next(
         &mut self,
         cognitive_state: &CognitiveState,
-    ) -> NousResult<GenerationStep> {
+    ) -> NoosResult<GenerationStep> {
         // Determine input tokens for this step.
         let input_tokens = if self.generated_tokens.is_empty() {
             // First generation step: use last prompt token.
             // (KV cache already has full prompt from set_prompt.)
             vec![*self.prompt_tokens.last().ok_or_else(|| {
-                NousError::Internal("No prompt set".into())
+                NoosError::Internal("No prompt set".into())
             })?]
         } else {
             // Subsequent steps: feed the last generated token.
@@ -152,7 +152,7 @@ impl<M: LocalModel, T: NousTokenizer> InferenceEngine<M, T> {
         &mut self,
         cognitive_state: &CognitiveState,
         max_tokens: usize,
-    ) -> NousResult<String> {
+    ) -> NoosResult<String> {
         let mut output = String::new();
 
         for _ in 0..max_tokens {
@@ -224,7 +224,7 @@ pub struct CognitiveGenerationStep {
 ///
 /// Brain analog: neuromodulators (Tầng 2, NE/DA) change cortical processing,
 /// THEN output gating (Tầng 1, basal ganglia) selects the action.
-impl<M: CognitiveModel, T: NousTokenizer> InferenceEngine<M, T> {
+impl<M: CognitiveModel, T: NoosTokenizer> InferenceEngine<M, T> {
     /// Mutable: generates one token with full cognitive modulation (Tầng 1 + 2).
     ///
     /// Pipeline:
@@ -238,11 +238,11 @@ impl<M: CognitiveModel, T: NousTokenizer> InferenceEngine<M, T> {
     pub fn generate_next_cognitive(
         &mut self,
         cognitive_state: &CognitiveState,
-    ) -> NousResult<CognitiveGenerationStep> {
+    ) -> NoosResult<CognitiveGenerationStep> {
         // Determine input tokens (same logic as generate_next).
         let input_tokens = if self.generated_tokens.is_empty() {
             vec![*self.prompt_tokens.last().ok_or_else(|| {
-                NousError::Internal("No prompt set".into())
+                NoosError::Internal("No prompt set".into())
             })?]
         } else {
             vec![*self.generated_tokens.last().unwrap_or(&0)]
@@ -302,7 +302,7 @@ impl<M: CognitiveModel, T: NousTokenizer> InferenceEngine<M, T> {
         &mut self,
         cognitive_state: &CognitiveState,
         max_tokens: usize,
-    ) -> NousResult<String> {
+    ) -> NoosResult<String> {
         let mut output = String::new();
 
         for _ in 0..max_tokens {

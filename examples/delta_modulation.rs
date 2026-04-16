@@ -2,7 +2,7 @@
 //!
 //! Run: `cargo run --example delta_modulation`
 //!
-//! This example shows how Nous's cognitive state maps to SSM delta modulation:
+//! This example shows how Noos's cognitive state maps to SSM delta modulation:
 //! - Phasic mode → higher delta → model attends to current input (focused)
 //! - Tonic mode → lower delta → model preserves history (exploratory)
 //! - Low body budget → conservation → reduced delta
@@ -21,7 +21,7 @@ use noos::types::intervention::CognitiveState;
 use noos::types::world::GainMode;
 
 fn main() {
-    println!("=== Nous Tầng 2: Delta Modulation Explorer ===\n");
+    println!("=== Noos Tầng 2: Delta Modulation Explorer ===\n");
 
     // ── Part 1: Direct computation from CognitiveState ──────────────
 

@@ -10,7 +10,7 @@ use std::collections::{HashMap, HashSet};
 
 use async_trait::async_trait;
 
-use crate::errors::NousResult;
+use crate::errors::NoosResult;
 use crate::types::memory::{MemoryAtom, Synapse};
 
 /// Partial update for a memory atom (only set fields that changed).
@@ -29,15 +29,15 @@ pub struct AtomUpdate {
 /// Abstract memory storage — implement for your persistence backend.
 #[async_trait]
 pub trait MemoryStore: Send + Sync {
-    async fn store_atom(&mut self, atom: MemoryAtom) -> NousResult<()>;
-    async fn get_atom(&self, id: &str) -> NousResult<Option<MemoryAtom>>;
-    async fn get_all_atoms(&self) -> NousResult<Vec<MemoryAtom>>;
-    async fn update_atom_fields(&mut self, id: &str, updates: AtomUpdate) -> NousResult<bool>;
-    async fn remove_atom(&mut self, id: &str) -> NousResult<bool>;
+    async fn store_atom(&mut self, atom: MemoryAtom) -> NoosResult<()>;
+    async fn get_atom(&self, id: &str) -> NoosResult<Option<MemoryAtom>>;
+    async fn get_all_atoms(&self) -> NoosResult<Vec<MemoryAtom>>;
+    async fn update_atom_fields(&mut self, id: &str, updates: AtomUpdate) -> NoosResult<bool>;
+    async fn remove_atom(&mut self, id: &str) -> NoosResult<bool>;
 
-    async fn store_synapse(&mut self, synapse: Synapse) -> NousResult<()>;
-    async fn get_synapses_for(&self, atom_id: &str) -> NousResult<Vec<Synapse>>;
-    async fn remove_synapse(&mut self, id: &str) -> NousResult<bool>;
+    async fn store_synapse(&mut self, synapse: Synapse) -> NoosResult<()>;
+    async fn get_synapses_for(&self, atom_id: &str) -> NoosResult<Vec<Synapse>>;
+    async fn remove_synapse(&mut self, id: &str) -> NoosResult<bool>;
 
     fn atom_count(&self) -> usize;
 }
@@ -70,20 +70,20 @@ impl Default for InMemoryStore {
 
 #[async_trait]
 impl MemoryStore for InMemoryStore {
-    async fn store_atom(&mut self, atom: MemoryAtom) -> NousResult<()> {
+    async fn store_atom(&mut self, atom: MemoryAtom) -> NoosResult<()> {
         self.atoms.insert(atom.id.clone(), atom);
         Ok(())
     }
 
-    async fn get_atom(&self, id: &str) -> NousResult<Option<MemoryAtom>> {
+    async fn get_atom(&self, id: &str) -> NoosResult<Option<MemoryAtom>> {
         Ok(self.atoms.get(id).cloned())
     }
 
-    async fn get_all_atoms(&self) -> NousResult<Vec<MemoryAtom>> {
+    async fn get_all_atoms(&self) -> NoosResult<Vec<MemoryAtom>> {
         Ok(self.atoms.values().cloned().collect())
     }
 
-    async fn update_atom_fields(&mut self, id: &str, updates: AtomUpdate) -> NousResult<bool> {
+    async fn update_atom_fields(&mut self, id: &str, updates: AtomUpdate) -> NoosResult<bool> {
         if let Some(atom) = self.atoms.get_mut(id) {
             if let Some(v) = updates.content { atom.content = v; }
             if let Some(v) = updates.importance { atom.importance = v; }
@@ -99,7 +99,7 @@ impl MemoryStore for InMemoryStore {
         }
     }
 
-    async fn remove_atom(&mut self, id: &str) -> NousResult<bool> {
+    async fn remove_atom(&mut self, id: &str) -> NoosResult<bool> {
         let removed = self.atoms.remove(id).is_some();
         // Clean up adjacency
         if let Some(syn_ids) = self.adjacency.remove(id) {
@@ -110,7 +110,7 @@ impl MemoryStore for InMemoryStore {
         Ok(removed)
     }
 
-    async fn store_synapse(&mut self, synapse: Synapse) -> NousResult<()> {
+    async fn store_synapse(&mut self, synapse: Synapse) -> NoosResult<()> {
         self.adjacency
             .entry(synapse.source.clone())
             .or_default()
@@ -123,7 +123,7 @@ impl MemoryStore for InMemoryStore {
         Ok(())
     }
 
-    async fn get_synapses_for(&self, atom_id: &str) -> NousResult<Vec<Synapse>> {
+    async fn get_synapses_for(&self, atom_id: &str) -> NoosResult<Vec<Synapse>> {
         let syn_ids = self.adjacency.get(atom_id);
         let result = match syn_ids {
             Some(ids) => ids
@@ -135,7 +135,7 @@ impl MemoryStore for InMemoryStore {
         Ok(result)
     }
 
-    async fn remove_synapse(&mut self, id: &str) -> NousResult<bool> {
+    async fn remove_synapse(&mut self, id: &str) -> NoosResult<bool> {
         if let Some(syn) = self.synapses.remove(id) {
             if let Some(set) = self.adjacency.get_mut(&syn.source) {
                 set.remove(id);

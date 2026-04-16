@@ -10,7 +10,7 @@
 //!
 //! Performance: forward pass latency depends on model size (~10-500ms).
 
-use crate::errors::NousResult;
+use crate::errors::NoosResult;
 
 /// In-process model inference — produces raw logits from token sequences.
 ///
@@ -30,7 +30,7 @@ pub trait LocalModel: Send {
     ///
     /// Returns: logits vector of size `vocab_size()`. Each element
     /// is the unnormalized log-probability of that token being next.
-    fn forward(&mut self, tokens: &[u32], position: usize) -> NousResult<Vec<f32>>;
+    fn forward(&mut self, tokens: &[u32], position: usize) -> NoosResult<Vec<f32>>;
 
     /// Vocabulary size — length of the logits vector returned by forward().
     fn vocab_size(&self) -> usize;
@@ -62,7 +62,7 @@ pub(crate) mod tests {
     }
 
     impl LocalModel for MockModel {
-        fn forward(&mut self, _tokens: &[u32], _position: usize) -> NousResult<Vec<f32>> {
+        fn forward(&mut self, _tokens: &[u32], _position: usize) -> NoosResult<Vec<f32>> {
             self.call_count += 1;
             // Return logits where token at index (call_count % vocab_size) is strongest.
             let mut logits = vec![0.0f32; self.vocab_size];

@@ -1,14 +1,14 @@
-//! Budget sweep — characterizes the Pareto envelope where Nous-full beats
+//! Budget sweep — characterizes the Pareto envelope where Noos-full beats
 //! the smart baseline (vs where it doesn't).
 //!
 //! Run: `cargo run --example task_eval_budget_sweep`
 //!
-//! Tier 1.3 (`task_eval_multi_signal.rs`) showed Nous-full beats smart
-//! baseline by +2.73 total quality at budget=12.0, but that Nous costs more
+//! Tier 1.3 (`task_eval_multi_signal.rs`) showed Noos-full beats smart
+//! baseline by +2.73 total quality at budget=12.0, but that Noos costs more
 //! per quality unit (Pareto trade-off). This sweep tests:
 //!
-//! - At what budget does Nous's quality advantage actually flip?
-//! - In which regime should apps use Nous-full vs simple cost-tracking?
+//! - At what budget does Noos's quality advantage actually flip?
+//! - In which regime should apps use Noos-full vs simple cost-tracking?
 //!
 //! Same 24-query mixed workload as Tier 1.3. Three agents, varying the
 //! budget cap from tight (4.0) to generous (20.0). Reports total_quality
@@ -268,7 +268,7 @@ fn main() {
     println!("║  task_eval_budget_sweep — Pareto envelope characterization   ║");
     println!("╚══════════════════════════════════════════════════════════════╝\n");
     println!("Same 24-query mixed workload as Tier 1.3, varied budget cap.");
-    println!("Compare smart-baseline (no Nous) vs nous-full at each budget.\n");
+    println!("Compare smart-baseline (no Noos) vs noos-full at each budget.\n");
 
     let stream = generate_stream();
     let training = train_prior_session();
@@ -277,7 +277,7 @@ fn main() {
 
     println!(
         "  {:>6} | {:<30} | {:<30} | {:>9}",
-        "budget", "smart baseline", "nous-full", "delta_q"
+        "budget", "smart baseline", "noos-full", "delta_q"
     );
     println!(
         "  {:>6} | {:>5} {:>4} {:>5} {:>6} {:>5} | {:>5} {:>4} {:>5} {:>6} {:>5} | {:>9}",
@@ -290,11 +290,11 @@ fn main() {
 
     for &budget in budgets {
         let smart = run_smart_baseline(&stream, budget);
-        let nous = run_nous_full(&stream, budget, training.clone());
+        let noos = run_nous_full(&stream, budget, training.clone());
 
-        let delta_q = nous.quality - smart.quality;
+        let delta_q = noos.quality - smart.quality;
         let winner = if delta_q > 0.05 {
-            "nous"
+            "noos"
         } else if delta_q < -0.05 {
             "smart"
         } else {
@@ -324,17 +324,17 @@ fn main() {
             "  {:>6.1} | {:>5} {:>4} {:>5.2} {:>6.2} {:>5.2} | {:>5} {:>4} {:>5.2} {:>6.2} {:>5.2} | {:>+6.2} {}",
             budget,
             smart.served, smart.skipped, smart.cost, smart.quality, smart.quality_per_cost(),
-            nous.served, nous.skipped, nous.cost, nous.quality, nous.quality_per_cost(),
+            noos.served, noos.skipped, noos.cost, noos.quality, noos.quality_per_cost(),
             delta_q, marker
         );
     }
 
-    println!("\nLegend:  +++ Nous wins big (>0.5)  + Nous edge  ~ tie  - smart edge  --- smart wins big");
+    println!("\nLegend:  +++ Noos wins big (>0.5)  + Noos edge  ~ tie  - smart edge  --- smart wins big");
     println!();
     match crossover {
         Some(b) => println!(
             "  Crossover detected near budget = {:.1} (winner flipped). \n  \
-              Apps with budget below this should consider smart baseline; above, Nous-full.",
+              Apps with budget below this should consider smart baseline; above, Noos-full.",
             b
         ),
         None => println!(
@@ -346,7 +346,7 @@ fn main() {
     println!("\nNotes:");
     println!("  • Synthetic task — illustrates regime sensitivity, not absolute calibration.");
     println!("  • Per-cost efficiency (q/c) often favors smart baseline because it");
-    println!("    conserves earlier; per-query absolute quality often favors Nous because");
+    println!("    conserves earlier; per-query absolute quality often favors Noos because");
     println!("    it stays in full mode while there's budget.");
     println!("  • At very tight budgets, both agents skip queries — winner determined by");
     println!("    which strategies they pick on the queries they CAN serve.");

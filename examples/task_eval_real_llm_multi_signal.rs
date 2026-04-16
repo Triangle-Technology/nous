@@ -4,22 +4,22 @@
 //!
 //! ## What this eval tests
 //!
-//! Does Nous's MULTI-SIGNAL compounding (conservation + strategy + confidence +
+//! Does Noos's MULTI-SIGNAL compounding (conservation + strategy + confidence +
 //! recent_quality) beat a smart app-level baseline on a REAL LLM (mamba-130m)?
 //!
 //! Tier 1.3 synthetic showed +2.73 total quality compound win. Tier 1.4
-//! synthetic showed Nous wins at every budget. This eval asks: does the
+//! synthetic showed Noos wins at every budget. This eval asks: does the
 //! compound transfer to real-model quality signals — or do the signals only
 //! compound on deterministic synthetic quality?
 //!
 //! ## Why this pivots from `task_eval_real_llm_abstention.rs`
 //!
 //! The Path B skeleton tests ONE signal (confidence) on single-turn
-//! abstention — Nous's weakest signal on Tier 1.5 (TIED smart baseline
+//! abstention — Noos's weakest signal on Tier 1.5 (TIED smart baseline
 //! F1=1.00). This eval tests the STRONGEST signal pattern (multi-signal
-//! compound under budget pressure) from Tier 1.3/1.4 where Nous wins.
+//! compound under budget pressure) from Tier 1.3/1.4 where Noos wins.
 //!
-//! Per 8-framework re-analysis 2026-04-15: Tier 2 should test Nous's point
+//! Per 8-framework re-analysis 2026-04-15: Tier 2 should test Noos's point
 //! of maximum differentiation, not the weakest. Path B skeleton kept as
 //! historical reference; this file supersedes it as the primary Tier 2 target.
 //!
@@ -36,11 +36,11 @@
 //! ## Three agents
 //!
 //! 1. **Naive**: fixed DirectAnswer strategy, Full mode, no abstention.
-//! 2. **Smart baseline (no Nous)**: per-category strategy memory with
+//! 2. **Smart baseline (no Noos)**: per-category strategy memory with
 //!    rotate-on-low-quality + cost-threshold shallow mode + count-based
 //!    abstention on unfamiliar clusters (< 3 observations). Everything a
-//!    competent engineer would build WITHOUT Nous.
-//! 3. **Nous-full**: warm-started `CognitiveSession`, uses
+//!    competent engineer would build WITHOUT Noos.
+//! 3. **Noos-full**: warm-started `CognitiveSession`, uses
 //!    `signals.strategy` for learned recommendations,
 //!    `signals.conservation > 0.2` to switch to shallow,
 //!    `signals.confidence < 0.4` to abstain, closed loop via
@@ -50,17 +50,17 @@
 //!
 //! | Outcome | Action |
 //! |---------|--------|
-//! | Nous total_q ≥ smart + 1.0 | Multi-signal compound confirmed on real LLM. Elevate Tier 1.3/1.4 story to "validated on real model." |
-//! | \|Nous − smart\| < 1.0 | Compound is synthetic artifact on real LLM. Downgrade Tier 1.3/1.4 to "synthetic-only". Honest. |
-//! | Nous < smart − 1.0 | Nous actively hurts on real LLM. Investigate signal calibration before any public claim. |
+//! | Noos total_q ≥ smart + 1.0 | Multi-signal compound confirmed on real LLM. Elevate Tier 1.3/1.4 story to "validated on real model." |
+//! | \|Noos − smart\| < 1.0 | Compound is synthetic artifact on real LLM. Downgrade Tier 1.3/1.4 to "synthetic-only". Honest. |
+//! | Noos < smart − 1.0 | Noos actively hurts on real LLM. Investigate signal calibration before any public claim. |
 //!
 //! ## Honest caveats
 //!
 //! - mamba-130m is a weak model (~130M params). Quality oracle is noisy.
 //!   Weak-model results DO NOT automatically generalize to frontier models.
 //! - 20 queries × 3 seeds is a minimum. Real benchmark needs ≥100 queries.
-//! - Strategy discrimination may be weak on mamba-130m regardless of Nous
-//!   (Direct prompts may dominate all categories). If so, Nous's win/loss
+//! - Strategy discrimination may be weak on mamba-130m regardless of Noos
+//!   (Direct prompts may dominate all categories). If so, Noos's win/loss
 //!   comes from conservation + confidence, not strategy.
 //! - Quality→[0,1] mapping has calibration choices documented in `quality_from_ce`.
 //!
@@ -85,7 +85,7 @@ use noos::inference::mamba::{CognitiveMambaModel, HfTokenizer, MambaConfig};
 #[cfg(feature = "candle")]
 use noos::inference::model::LocalModel;
 #[cfg(feature = "candle")]
-use noos::inference::tokenizer::NousTokenizer;
+use noos::inference::tokenizer::NoosTokenizer;
 #[cfg(feature = "candle")]
 use noos::math::softmax::softmax_f32;
 #[cfg(feature = "candle")]
@@ -115,7 +115,7 @@ const SMART_ABSTAIN_MIN_COUNT: usize = 3;
 #[cfg(feature = "candle")]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
 enum Category {
-    // Pre-trained (Nous has warm LearnedState for these).
+    // Pre-trained (Noos has warm LearnedState for these).
     Recall,    // short factual — correct=Direct
     Reason,    // simple step-by-step — correct=StepByStep
     Clarify,   // ambiguous request — correct=AskClarifying
@@ -232,7 +232,7 @@ impl AppStrategy {
         }
     }
 
-    /// Response text used in closing the Nous loop (`process_response`).
+    /// Response text used in closing the Noos loop (`process_response`).
     /// Must match `detect_response_strategy` format so LearnedState records
     /// the intended strategy. Formats taken from Tier 1.1 / Tier 1.3 fixes.
     fn canonical_response(self) -> &'static str {
@@ -417,7 +417,7 @@ impl RunResult {
     }
 }
 
-// ── Warmup (Nous LearnedState) ────────────────────────────────────────────
+// ── Warmup (Noos LearnedState) ────────────────────────────────────────────
 
 /// Train a LearnedState using the ACTUAL eval prompts so cluster hashes match.
 ///
@@ -427,7 +427,7 @@ impl RunResult {
 /// `types/world.rs`) for `get_recommended_strategy` to return Some on that
 /// cluster. 2026-04-15 diagnostic pass found v1/v2 runs used rounds=2 —
 /// below the threshold — so `turn.signals.strategy` returned None for
-/// every eval turn, silently disabling Nous's cross-session reward learning.
+/// every eval turn, silently disabling Noos's cross-session reward learning.
 /// v3 bumps to 6 (matches Tier 1.3 `train_prior_session` pattern).
 ///
 /// Uses `canonical_response` text so `detect_response_strategy_safe` records
@@ -592,7 +592,7 @@ fn run_nous_full(
             continue;
         }
 
-        // Strategy: prefer Nous's learned recommendation (cross-session).
+        // Strategy: prefer Noos's learned recommendation (cross-session).
         // Fall back to per-category rotation.
         let current = per_cat_strategy.entry(q.category).or_insert(AppStrategy::DirectAnswer);
         let strategy = if let Some(rec) = turn.signals.strategy {
@@ -643,7 +643,7 @@ fn run_nous_full(
     r
 }
 
-/// Print one diagnostic row of per-turn Nous-full state.
+/// Print one diagnostic row of per-turn Noos-full state.
 #[cfg(feature = "candle")]
 fn print_diagnose_row(
     turn_idx: usize,
@@ -836,16 +836,16 @@ fn main() {
 
         let naive = run_naive(&mut model, &tokenizer, &ordered);
         let smart = run_smart_baseline(&mut model, &tokenizer, &ordered);
-        let nous = run_nous_full(&mut model, &tokenizer, &ordered, warm);
+        let noos = run_nous_full(&mut model, &tokenizer, &ordered, warm);
 
         print_row("naive (ref)", &naive);
         print_row("smart baseline", &smart);
-        print_row("nous-full", &nous);
+        print_row("noos-full", &noos);
         println!();
 
         naive_results.push(naive);
         smart_results.push(smart);
-        nous_results.push(nous);
+        nous_results.push(noos);
     }
 
     // ── Aggregated metrics ──
@@ -854,17 +854,17 @@ fn main() {
     println!("Total quality (primary metric):");
     let _ = summarize_metric("naive (ref)", &naive_results, |r| r.total_quality);
     let (smart_tq, _) = summarize_metric("smart baseline", &smart_results, |r| r.total_quality);
-    let (nous_tq, nous_tq_sd) = summarize_metric("nous-full", &nous_results, |r| r.total_quality);
+    let (nous_tq, nous_tq_sd) = summarize_metric("noos-full", &nous_results, |r| r.total_quality);
 
     println!("\nAvg quality per served query:");
     let _ = summarize_metric("naive (ref)", &naive_results, |r| r.avg_quality());
     let _ = summarize_metric("smart baseline", &smart_results, |r| r.avg_quality());
-    let _ = summarize_metric("nous-full", &nous_results, |r| r.avg_quality());
+    let _ = summarize_metric("noos-full", &nous_results, |r| r.avg_quality());
 
     println!("\nAbstention F1:");
     let _ = summarize_metric("naive (ref)", &naive_results, |r| r.abstention_f1());
     let (smart_f1, _) = summarize_metric("smart baseline", &smart_results, |r| r.abstention_f1());
-    let (nous_f1, _) = summarize_metric("nous-full", &nous_results, |r| r.abstention_f1());
+    let (nous_f1, _) = summarize_metric("noos-full", &nous_results, |r| r.abstention_f1());
 
     println!("\nCorrect-strategy rate (on served answerable queries):");
     let correct_rate = |r: &RunResult| {
@@ -876,13 +876,13 @@ fn main() {
     };
     let _ = summarize_metric("naive (ref)", &naive_results, correct_rate);
     let _ = summarize_metric("smart baseline", &smart_results, correct_rate);
-    let _ = summarize_metric("nous-full", &nous_results, correct_rate);
+    let _ = summarize_metric("noos-full", &nous_results, correct_rate);
 
     // ── Decision tree ──
     println!("\n═══ Pre-registered decision (primary = total_quality) ═══");
     let delta_tq = nous_tq - smart_tq;
     let bar = 1.0;
-    println!("  Δtotal_q (Nous − Smart) = {:+.2}  (bar = ±{bar:.1})", delta_tq);
+    println!("  Δtotal_q (Noos − Smart) = {:+.2}  (bar = ±{bar:.1})", delta_tq);
     if delta_tq >= bar {
         println!("  → Outcome: MULTI-SIGNAL COMPOUND CONFIRMED on real LLM.");
         println!("    Update `docs/intervention.md` + `docs/task-eval-design.md` with real-LLM result.");
@@ -896,20 +896,20 @@ fn main() {
 
     println!("\n═══ Secondary — abstention F1 (matches Tier 1.5 TIE question) ═══");
     let delta_f1 = nous_f1 - smart_f1;
-    println!("  ΔF1 (Nous − Smart) = {:+.3}", delta_f1);
+    println!("  ΔF1 (Noos − Smart) = {:+.3}", delta_f1);
     if delta_f1 >= 0.05 {
-        println!("  → Nous-confidence separates from smart baseline on real LLM.");
+        println!("  → Noos-confidence separates from smart baseline on real LLM.");
     } else if delta_f1.abs() < 0.05 {
         println!("  → Confidence signal = per-cluster history on real LLM too (Tier 1.5 TIE transfers).");
     } else {
-        println!("  → Nous confidence HURTS abstention on real LLM. Investigate threshold.");
+        println!("  → Noos confidence HURTS abstention on real LLM. Investigate threshold.");
     }
 
     // ── Honest caveats ──
     println!("\n═══ Honest caveats (always printed per task-eval-design.md §7) ═══");
     println!("  - mamba-130m is a weak model; results do not automatically generalize.");
     println!("  - 20 queries × 3 seeds is the minimum. Publishable benchmark needs ≥100.");
-    println!("  - nous-full total_q stddev = {:.3}. If Δ < 2×stddev, outcome is noise.", nous_tq_sd);
+    println!("  - noos-full total_q stddev = {:.3}. If Δ < 2×stddev, outcome is noise.", nous_tq_sd);
     println!("  - Cluster-identity fixed: warmup uses eval prompts, not placeholders.");
     println!("  - Strategy primer effect on mamba-130m may be weak; watch correct-strategy rate.");
 }

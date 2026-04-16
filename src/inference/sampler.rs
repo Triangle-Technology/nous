@@ -1,6 +1,6 @@
 //! Cognitive Sampler — brain-modulated token sampling.
 //!
-//! This is the point where Nous ACTUALLY intervenes in model output.
+//! This is the point where Noos ACTUALLY intervenes in model output.
 //! Raw logits from a model's forward pass are modulated by cognitive state
 //! (arousal, gain mode, body budget, etc.) before sampling the next token.
 //!
@@ -21,7 +21,7 @@
 use rand::Rng;
 
 use crate::cognition::intervention::compute_sampling_override;
-use crate::errors::{NousError, NousResult};
+use crate::errors::{NoosError, NoosResult};
 use crate::math::softmax::softmax_f32;
 use crate::types::intervention::{CognitiveState, SamplingOverride};
 
@@ -67,7 +67,7 @@ impl CognitiveSampler {
     /// 6. Weighted random sample from filtered distribution
     ///
     /// Returns token ID of the sampled token.
-    pub fn sample(&self, logits: &[f32], previous_tokens: &[u32]) -> NousResult<u32> {
+    pub fn sample(&self, logits: &[f32], previous_tokens: &[u32]) -> NoosResult<u32> {
         self.sample_with_rng(logits, previous_tokens, &mut rand::thread_rng())
     }
 
@@ -77,9 +77,9 @@ impl CognitiveSampler {
         logits: &[f32],
         previous_tokens: &[u32],
         rng: &mut impl Rng,
-    ) -> NousResult<u32> {
+    ) -> NoosResult<u32> {
         if logits.is_empty() {
-            return Err(NousError::Internal("Empty logits vector".into()));
+            return Err(NoosError::Internal("Empty logits vector".into()));
         }
 
         let mut modified = logits.to_vec();
@@ -146,9 +146,9 @@ impl CognitiveSampler {
         &self,
         logits: &[f32],
         previous_tokens: &[u32],
-    ) -> NousResult<Vec<f32>> {
+    ) -> NoosResult<Vec<f32>> {
         if logits.is_empty() {
-            return Err(NousError::Internal("Empty logits vector".into()));
+            return Err(NoosError::Internal("Empty logits vector".into()));
         }
 
         let mut modified = logits.to_vec();

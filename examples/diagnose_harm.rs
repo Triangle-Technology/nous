@@ -16,7 +16,7 @@ use noos::inference::mamba::{CognitiveMambaModel, HfTokenizer, MambaConfig};
 #[cfg(feature = "candle")]
 use noos::inference::model::LocalModel;
 #[cfg(feature = "candle")]
-use noos::inference::tokenizer::NousTokenizer;
+use noos::inference::tokenizer::NoosTokenizer;
 #[cfg(feature = "candle")]
 use noos::math::softmax::softmax_f32;
 #[cfg(feature = "candle")]

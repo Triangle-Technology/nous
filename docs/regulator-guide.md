@@ -1,6 +1,6 @@
 # Regulator Integrator's Guide
 
-This is the reference for engineers wiring Nous's `Regulator` into an
+This is the reference for engineers wiring Noos's `Regulator` into an
 agent loop. If you just want to see the shape of the API, read the
 [README](../README.md) or run one of the demos. If you're about to ship
 a regulator integration, read this end-to-end — the gotchas section

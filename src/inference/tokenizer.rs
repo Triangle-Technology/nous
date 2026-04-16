@@ -9,24 +9,24 @@
 //!
 //! Performance: <1ms per encode/decode call.
 
-use crate::errors::NousResult;
+use crate::errors::NoosResult;
 
 /// Text-to-token and token-to-text conversion.
 ///
 /// Brain analog: sensory transduction (retina → neural code, cochlea → spike trains).
 /// Must be matched to the model — each model has its own tokenizer vocabulary.
-pub trait NousTokenizer: Send + Sync {
+pub trait NoosTokenizer: Send + Sync {
     /// Encode text to token IDs.
     ///
     /// `add_special_tokens`: if true, prepend BOS / append EOS as model requires.
-    fn encode(&self, text: &str, add_special_tokens: bool) -> NousResult<Vec<u32>>;
+    fn encode(&self, text: &str, add_special_tokens: bool) -> NoosResult<Vec<u32>>;
 
     /// Decode token IDs back to text.
-    fn decode(&self, tokens: &[u32]) -> NousResult<String>;
+    fn decode(&self, tokens: &[u32]) -> NoosResult<String>;
 
     /// Decode a single token to its string representation.
     /// Returns empty string for unknown tokens (P5: fail-open).
-    fn decode_token(&self, token: u32) -> NousResult<String>;
+    fn decode_token(&self, token: u32) -> NoosResult<String>;
 
     /// Vocabulary size — must match the model's vocab_size().
     fn vocab_size(&self) -> usize;
@@ -54,8 +54,8 @@ pub(crate) mod tests {
         }
     }
 
-    impl NousTokenizer for MockTokenizer {
-        fn encode(&self, text: &str, _add_special_tokens: bool) -> NousResult<Vec<u32>> {
+    impl NoosTokenizer for MockTokenizer {
+        fn encode(&self, text: &str, _add_special_tokens: bool) -> NoosResult<Vec<u32>> {
             // Simple: each char's byte value mod vocab_size.
             Ok(text
                 .bytes()
@@ -63,7 +63,7 @@ pub(crate) mod tests {
                 .collect())
         }
 
-        fn decode(&self, tokens: &[u32]) -> NousResult<String> {
+        fn decode(&self, tokens: &[u32]) -> NoosResult<String> {
             // Inverse of encode (lossy — for testing only).
             Ok(tokens
                 .iter()
@@ -71,7 +71,7 @@ pub(crate) mod tests {
                 .collect())
         }
 
-        fn decode_token(&self, token: u32) -> NousResult<String> {
+        fn decode_token(&self, token: u32) -> NoosResult<String> {
             Ok(((token as u8 + b'a') as char).to_string())
         }
 

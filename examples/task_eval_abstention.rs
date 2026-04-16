@@ -1,4 +1,4 @@
-//! Tier 1.5 abstention calibration — does Nous's `signals.strategy` +
+//! Tier 1.5 abstention calibration — does Noos's `signals.strategy` +
 //! `signals.confidence` produce well-calibrated abstention decisions on
 //! questions the agent shouldn't try to answer?
 //!
@@ -7,13 +7,13 @@
 //! ## Why this eval matters
 //!
 //! Metacognition (0% unknown detection in frontier models, per MetaMedQA)
-//! is a well-documented LLM weakness. Tier 1.5 tests whether Nous gives
+//! is a well-documented LLM weakness. Tier 1.5 tests whether Noos gives
 //! apps a reliable "I don't know this" signal — the precondition for
 //! graceful abstention.
 //!
 //! ## Setup
 //!
-//! Stream: 30 questions across 5 categories. **3 pre-trained** (Nous has
+//! Stream: 30 questions across 5 categories. **3 pre-trained** (Noos has
 //! prior LearnedState data — should attempt + answer well). **2 novel**
 //! (no prior data — should abstain rather than guess).
 //!
@@ -30,12 +30,12 @@
 //!
 //! 1. **Always-answer** (reference): never abstains. Worst-case for
 //!    abstention F1.
-//! 2. **Smart baseline** (no Nous): tracks per-cluster historical success
+//! 2. **Smart baseline** (no Noos): tracks per-cluster historical success
 //!    rate, abstains when cluster has < 3 observations OR avg quality < 0.4.
 //!    Equivalent to "I don't know this enough to try."
-//! 3. **Nous-confidence**: abstains when `signals.strategy.is_none()` (no
+//! 3. **Noos-confidence**: abstains when `signals.strategy.is_none()` (no
 //!    learned recommendation for cluster) OR `signals.confidence < 0.4`.
-//!    Uses Nous's combined uncertainty signal.
+//!    Uses Noos's combined uncertainty signal.
 //!
 //! ## Metrics
 //!
@@ -325,12 +325,12 @@ fn run_smart_baseline(
     stats
 }
 
-// ─── Agent 3: Nous-confidence — abstains based on signals ────────────────
+// ─── Agent 3: Noos-confidence — abstains based on signals ────────────────
 //
-// Decision rule: abstain if `signals.strategy.is_none()` (Nous has no
+// Decision rule: abstain if `signals.strategy.is_none()` (Noos has no
 // learned recommendation for this cluster) OR `signals.confidence` falls
-// below a threshold (Nous's classification is unreliable). Simulates an
-// app that respects Nous's uncertainty signaling.
+// below a threshold (Noos's classification is unreliable). Simulates an
+// app that respects Noos's uncertainty signaling.
 
 const NOUS_CONFIDENCE_ABSTAIN_THRESHOLD: f64 = 0.4;
 
@@ -352,13 +352,13 @@ fn run_nous_confidence(stream: &[(Category, String)], training: LearnedState) ->
         // Decision rule (revised after first-run analysis 2026-04-14):
         //
         // Original rule was AND: abstain if strategy.is_none() AND confidence < 0.4.
-        // First run: Nous never abstained — confidence stays around 0.5 for
+        // First run: Noos never abstained — confidence stays around 0.5 for
         // benign novel queries (gate.confidence default + low pe_volatility),
         // never crossing 0.4. The AND condition was too restrictive.
         //
-        // Revised rule: abstain when `signals.strategy.is_none()` — Nous has
+        // Revised rule: abstain when `signals.strategy.is_none()` — Noos has
         // no learned recommendation for this cluster. This is the strongest
-        // direct "I haven't seen this before" signal Nous provides. Confidence
+        // direct "I haven't seen this before" signal Noos provides. Confidence
         // is a secondary modulator; primary signal is strategy availability.
         let abstain = turn.signals.strategy.is_none();
         let _ = NOUS_CONFIDENCE_ABSTAIN_THRESHOLD; // kept for documentation
@@ -376,7 +376,7 @@ fn run_nous_confidence(stream: &[(Category, String)], training: LearnedState) ->
 
         record(&mut stats, *cat, decision);
 
-        // Close the loop so Nous keeps learning even mid-stream.
+        // Close the loop so Noos keeps learning even mid-stream.
         if let Decision::Answer(strat) = decision {
             let (resp, quality) = simulate_llm(strat, *cat);
             session.track_cost(0.5);
@@ -412,7 +412,7 @@ fn main() {
     println!("╚══════════════════════════════════════════════════════════════╝\n");
     println!("30-query stream mixing pre-trained categories (Debug, Lookup,");
     println!("Clarify) and novel categories (Compose, Translate). Tests whether");
-    println!("Nous's `signals.confidence` + `signals.strategy.is_none()` produce");
+    println!("Noos's `signals.confidence` + `signals.strategy.is_none()` produce");
     println!("well-calibrated abstention decisions vs a smart per-cluster tracker.\n");
 
     let stream = generate_stream();
@@ -436,7 +436,7 @@ fn main() {
 
     let always = run_always_answer(&stream);
     let smart = run_smart_baseline(&stream, &pretrained_obs);
-    let nous = run_nous_confidence(&stream, training);
+    let noos = run_nous_confidence(&stream, training);
 
     println!("Per-condition results:");
     println!(
@@ -445,8 +445,8 @@ fn main() {
     );
     println!("  {}", "─".repeat(140));
     print_row("always-answer (reference)", &always);
-    print_row("smart baseline (no Nous)", &smart);
-    print_row("nous-confidence", &nous);
+    print_row("smart baseline (no Noos)", &smart);
+    print_row("noos-confidence", &noos);
 
     println!("\nLegend:");
     println!("  TP_corr = correctly answered pre-trained with right strategy (good)");
@@ -459,38 +459,38 @@ fn main() {
 
     println!("\nPrimary metric — abstention F1 (higher = better calibrated):");
     let smart_f1 = smart.f1();
-    let nous_f1 = nous.f1();
+    let nous_f1 = noos.f1();
     let delta_f1 = nous_f1 - smart_f1;
     if delta_f1.abs() < 0.05 {
         println!(
-            "  ≈ Tied: smart F1 = {:.2}, nous F1 = {:.2} (Δ = {:+.2})",
+            "  ≈ Tied: smart F1 = {:.2}, noos F1 = {:.2} (Δ = {:+.2})",
             smart_f1, nous_f1, delta_f1
         );
     } else if delta_f1 > 0.0 {
         println!(
-            "  ✓ Nous F1 = {:.2}, smart F1 = {:.2} (Nous better by {:+.2})",
+            "  ✓ Noos F1 = {:.2}, smart F1 = {:.2} (Noos better by {:+.2})",
             nous_f1, smart_f1, delta_f1
         );
     } else {
         println!(
-            "  ⚠ Nous F1 = {:.2}, smart F1 = {:.2} (smart better by {:+.2})",
+            "  ⚠ Noos F1 = {:.2}, smart F1 = {:.2} (smart better by {:+.2})",
             nous_f1, smart_f1, -delta_f1
         );
     }
 
     println!("\nSecondary — harm comparison (lower FP = less wrong-answer harm):");
     println!(
-        "  always-answer: FP={}  smart: FP={}  nous: FP={}",
-        always.false_positive, smart.false_positive, nous.false_positive
+        "  always-answer: FP={}  smart: FP={}  noos: FP={}",
+        always.false_positive, smart.false_positive, noos.false_positive
     );
 
     println!("\nNotes:");
     println!("  • Synthetic task — illustrates whether the SIGNAL is decision-grade.");
     println!("    Real validation would use MetaMedQA or similar.");
     println!("  • Smart baseline is given fair starting state (pre-populated cluster");
-    println!("    history matching Nous's training). Both start with equal info.");
-    println!("  • If Nous matches smart baseline F1, the metacognition claim from");
+    println!("    history matching Noos's training). Both start with equal info.");
+    println!("  • If Noos matches smart baseline F1, the metacognition claim from");
     println!("    docs/intervention.md gap #1 is infrastructure-only on this task.");
-    println!("  • If Nous beats smart baseline, `signals.confidence` adds discriminating");
+    println!("  • If Noos beats smart baseline, `signals.confidence` adds discriminating");
     println!("    info beyond per-cluster historical tracking.");
 }

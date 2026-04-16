@@ -1,4 +1,4 @@
-//! Tier 1.8 gradual-degradation fatigue eval — does Nous's smooth signal win
+//! Tier 1.8 gradual-degradation fatigue eval — does Noos's smooth signal win
 //! the regime that Tier 1.7's abrupt-degradation gave to direct quality
 //! monitoring?
 //!
@@ -6,9 +6,9 @@
 //!
 //! ## Why this eval matters
 //!
-//! Tier 1.7 (`task_eval_fatigue.rs`) tested abrupt quality drop and Nous's
+//! Tier 1.7 (`task_eval_fatigue.rs`) tested abrupt quality drop and Noos's
 //! combined signal lost (8 vs 4 turn detection latency, 8 vs 4 harm count).
-//! Honest finding for that regime. But Nous's smoothing is by-design — the
+//! Honest finding for that regime. But Noos's smoothing is by-design — the
 //! tradeoff should pay off when:
 //!
 //! - Quality is noisy turn-to-turn (so rolling avg false-positives)
@@ -31,13 +31,13 @@
 //!
 //! 1. **Naive** (reference): never adapts.
 //! 2. **Smart baseline**: 5-sample rolling avg, abstain when avg < 0.55.
-//! 3. **Nous-fatigue**: conservation > 0.30 OR recent_quality < 0.45 (with
+//! 3. **Noos-fatigue**: conservation > 0.30 OR recent_quality < 0.45 (with
 //!    3-turn warmup), same calibration as Tier 1.7.
 //!
 //! ## Hypotheses
 //!
 //! - **H1**: Smart baseline false-positives in Phase 1 (noise dips trigger
-//!   premature abstain). Nous's smoothing avoids this.
+//!   premature abstain). Noos's smoothing avoids this.
 //! - **H2**: In Phase 2, both agents eventually detect the trend; difference
 //!   is in WHEN (smart can be earlier, but its early signal in Phase 1 hurt
 //!   total quality if it abstained too soon).
@@ -245,7 +245,7 @@ fn main() {
         STREAM_LEN - PHASE_BOUNDARY,
         NOISE_STD
     );
-    println!("Tests whether Nous's smooth signal resists Phase-1 noise");
+    println!("Tests whether Noos's smooth signal resists Phase-1 noise");
     println!("false-positives that may trip a tight rolling-avg baseline.\n");
 
     let qualities = generate_qualities();
@@ -271,22 +271,22 @@ fn main() {
 
     let naive = run_naive(&qualities);
     let smart = run_smart_baseline(&qualities);
-    let nous = run_nous_fatigue(&qualities);
+    let noos = run_nous_fatigue(&qualities);
 
     println!("Per-condition results:");
     print_row("naive (reference)", &naive);
     print_row("smart baseline (rolling avg)", &smart);
-    print_row("nous-fatigue", &nous);
+    print_row("noos-fatigue", &noos);
 
     println!("\nFalse-positive (FP-Phase1) check:");
     println!(
-        "  smart: {}  nous: {}",
+        "  smart: {}  noos: {}",
         if smart.false_positive_phase1 {
             "FP — abstained in Phase 1"
         } else {
             "OK — held through Phase 1"
         },
-        if nous.false_positive_phase1 {
+        if noos.false_positive_phase1 {
             "FP — abstained in Phase 1"
         } else {
             "OK — held through Phase 1"
@@ -295,44 +295,44 @@ fn main() {
 
     println!("\nPrimary metric (total quality served — higher = better):");
     let smart_q = smart.total_quality;
-    let nous_q = nous.total_quality;
+    let nous_q = noos.total_quality;
     let delta = nous_q - smart_q;
     if delta > 1.0 {
         println!(
-            "  ✓ Nous-fatigue beats smart baseline by {:+.2} total quality on noisy gradual.",
+            "  ✓ Noos-fatigue beats smart baseline by {:+.2} total quality on noisy gradual.",
             delta
         );
-        println!("    Nous's smoothing pays off in this regime.");
+        println!("    Noos's smoothing pays off in this regime.");
     } else if delta > 0.05 {
         println!(
-            "  ≈ Nous-fatigue edges smart baseline by {:+.2} — narrow win.",
+            "  ≈ Noos-fatigue edges smart baseline by {:+.2} — narrow win.",
             delta
         );
     } else if delta.abs() <= 0.05 {
         println!(
-            "  ≈ Tied: smart={:.2}, nous={:.2} (Δ={:+.2}). Smoothing didn't help here.",
+            "  ≈ Tied: smart={:.2}, noos={:.2} (Δ={:+.2}). Smoothing didn't help here.",
             smart_q, nous_q, delta
         );
     } else {
         println!(
-            "  ⚠ Smart baseline beats Nous by {:+.2} even on noisy gradual.",
+            "  ⚠ Smart baseline beats Noos by {:+.2} even on noisy gradual.",
             -delta
         );
-        println!("    Either baseline already noise-robust enough, OR Nous's");
+        println!("    Either baseline already noise-robust enough, OR Noos's");
         println!("    calibration is wrong for this regime too.");
     }
 
     println!("\nSecondary — harm count (lower = less bad-quality delivered):");
     println!(
-        "  naive={}  smart={}  nous={}",
-        naive.harm_count, smart.harm_count, nous.harm_count
+        "  naive={}  smart={}  noos={}",
+        naive.harm_count, smart.harm_count, noos.harm_count
     );
 
     println!("\nNotes:");
     println!("  • Synthetic noisy gradual — illustrates regime sensitivity.");
-    println!("  • If Nous wins here while losing Tier 1.7 (abrupt), gap #4");
+    println!("  • If Noos wins here while losing Tier 1.7 (abrupt), gap #4");
     println!("    becomes regime-dependent rather than negative.");
-    println!("  • If Nous loses both regimes, the conservation+recent_quality");
+    println!("  • If Noos loses both regimes, the conservation+recent_quality");
     println!("    combination needs a faster complementary signal (window-based)");
     println!("    to be useful for fatigue detection at all.");
 }

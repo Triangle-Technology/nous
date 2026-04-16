@@ -5,8 +5,8 @@
 //! ## ⚠ Superseded 2026-04-15
 //!
 //! The 8-framework re-analysis of 2026-04-15 concluded this harness tests
-//! Nous's WEAKEST signal (confidence, already TIED smart baseline in Tier 1.5
-//! F1=1.00) rather than Nous's STRONGEST signal pattern (multi-signal compound
+//! Noos's WEAKEST signal (confidence, already TIED smart baseline in Tier 1.5
+//! F1=1.00) rather than Noos's STRONGEST signal pattern (multi-signal compound
 //! that won +2.73 in Tier 1.3/1.4).
 //!
 //! **Primary Tier 2 target is now `examples/task_eval_real_llm_multi_signal.rs`**
@@ -23,7 +23,7 @@
 //!
 //! ## What this eval tests
 //!
-//! Does Nous's abstention signal (`signals.strategy.is_none()` +
+//! Does Noos's abstention signal (`signals.strategy.is_none()` +
 //! `signals.confidence`) predict real LLM hallucination better than a
 //! history-only smart baseline? Tier 1.5 showed a TIE on synthetic data;
 //! this eval asks whether the TIE transfers to real LLM outputs.
@@ -60,10 +60,10 @@
 //!
 //! 1. **Always-answer** (reference): never abstains — measures pure
 //!    hallucination rate.
-//! 2. **Smart baseline** (no Nous): tracks per-cluster historical answer
+//! 2. **Smart baseline** (no Noos): tracks per-cluster historical answer
 //!    quality (perplexity-derived). Abstains when cluster has < 3
 //!    observations OR average quality is low.
-//! 3. **Nous-confidence**: uses `turn.signals.strategy.is_none()` OR
+//! 3. **Noos-confidence**: uses `turn.signals.strategy.is_none()` OR
 //!    `turn.signals.confidence < THRESHOLD`. Threshold calibrated on
 //!    held-out 5-question warmup subset, locked before eval.
 //!
@@ -77,9 +77,9 @@
 //!
 //! | Outcome | Action |
 //! |---------|--------|
-//! | Nous F1 ≥ baseline + 0.05 | Tier 1.5 TIE was synthetic artifact; metacognition lifts on real data. Update `docs/intervention.md`. |
-//! | `|Nous F1 − baseline F1| ≤ 0.05` | Infrastructure-only confirmed on real data too. Remove metacognition from headline claims. |
-//! | Nous F1 < baseline − 0.05 | Nous hurts on real task. Diagnose (threshold? clusters? warmup?). If no fix reaches ±0.05 in 1 session, remove claim. |
+//! | Noos F1 ≥ baseline + 0.05 | Tier 1.5 TIE was synthetic artifact; metacognition lifts on real data. Update `docs/intervention.md`. |
+//! | `|Noos F1 − baseline F1| ≤ 0.05` | Infrastructure-only confirmed on real data too. Remove metacognition from headline claims. |
+//! | Noos F1 < baseline − 0.05 | Noos hurts on real task. Diagnose (threshold? clusters? warmup?). If no fix reaches ±0.05 in 1 session, remove claim. |
 //!
 //! ## Status (2026-04-14 phase 13 continuation #4)
 //!
@@ -135,18 +135,18 @@ fn main() {
 
         let always = run_agent(&ordered, AgentType::AlwaysAnswer, None);
         let smart = run_agent(&ordered, AgentType::SmartBaseline, None);
-        let nous = run_agent(&ordered, AgentType::NousConfidence, Some(warm_learned.clone()));
+        let noos = run_agent(&ordered, AgentType::NoosConfidence, Some(warm_learned.clone()));
 
         println!("  Always-answer:   F1={:.3}  hallucinations={}  lost={}",
             always.f1, always.hallucinations, always.lost_answers);
         println!("  Smart baseline:  F1={:.3}  hallucinations={}  lost={}",
             smart.f1, smart.hallucinations, smart.lost_answers);
-        println!("  Nous-confidence: F1={:.3}  hallucinations={}  lost={}",
-            nous.f1, nous.hallucinations, nous.lost_answers);
+        println!("  Noos-confidence: F1={:.3}  hallucinations={}  lost={}",
+            noos.f1, noos.hallucinations, noos.lost_answers);
 
         always_results.push(always);
         smart_results.push(smart);
-        nous_results.push(nous);
+        nous_results.push(noos);
     }
 
     // ── Aggregate ──
@@ -163,22 +163,22 @@ fn main() {
 
     let (always_mean, _) = summarize("Always-answer", &always_results);
     let (smart_mean, smart_std) = summarize("Smart baseline", &smart_results);
-    let (nous_mean, nous_std) = summarize("Nous-confidence", &nous_results);
+    let (nous_mean, nous_std) = summarize("Noos-confidence", &nous_results);
 
     // ── Pre-registered decision tree ──
     println!("\n═══ Decision tree (pre-registered from docs/task-eval-design.md §8.6) ═══");
     let delta = nous_mean - smart_mean;
     let bar = 0.05;
-    println!("  ΔF1 (Nous − Smart) = {:+.3}  (bar = ±{bar})", delta);
+    println!("  ΔF1 (Noos − Smart) = {:+.3}  (bar = ±{bar})", delta);
 
     if delta >= bar {
-        println!("  → Outcome: Nous WINS. Tier 1.5 TIE was synthetic artifact; metacognition lifts on real LLM.");
+        println!("  → Outcome: Noos WINS. Tier 1.5 TIE was synthetic artifact; metacognition lifts on real LLM.");
         println!("  → Action: update `docs/intervention.md` metacognition row (validated on real).");
     } else if delta.abs() < bar {
         println!("  → Outcome: TIE on real LLM (|ΔF1| < {bar}).");
         println!("  → Action: infrastructure-only confirmed; remove metacognition from headline claims.");
     } else {
-        println!("  → Outcome: Nous HURTS (ΔF1 ≤ −{bar}).");
+        println!("  → Outcome: Noos HURTS (ΔF1 ≤ −{bar}).");
         println!("  → Action: diagnose (threshold? clusters? warmup?). If no fix, remove metacognition claim.");
     }
 
@@ -187,8 +187,8 @@ fn main() {
     println!("  - This is SKELETON output; model perplexity is stubbed (placeholder signals).");
     println!("  - mamba-130m has ~130M params and weak factual coverage. Weakest-possible LLM judge.");
     println!("  - 20 questions × 3 seeds is the minimum. Tier 2 real publishable results need ≥100 questions.");
-    println!("  - Nous smart-baseline comparison for Nous stddev = {:.4}.", nous_std);
-    println!("  - Smart baseline stddev = {:.4}. If Nous Δ is within 2×smart_std, outcome is noise.", smart_std);
+    println!("  - Noos smart-baseline comparison for Noos stddev = {:.4}.", nous_std);
+    println!("  - Smart baseline stddev = {:.4}. If Noos Δ is within 2×smart_std, outcome is noise.", smart_std);
     println!("  - Absolute Always-answer F1 = {:.3} — reference floor.", always_mean);
 }
 
@@ -212,7 +212,7 @@ struct Question {
     expected_answer: &'static str,
     /// Pre-registered label: true ⇒ agent SHOULD abstain.
     should_abstain: bool,
-    /// Cluster key for smart baseline + Nous per-cluster retrieval.
+    /// Cluster key for smart baseline + Noos per-cluster retrieval.
     cluster_tag: &'static str,
 }
 
@@ -221,7 +221,7 @@ struct Question {
 enum AgentType {
     AlwaysAnswer,
     SmartBaseline,
-    NousConfidence,
+    NoosConfidence,
 }
 
 #[cfg(feature = "candle")]
@@ -312,7 +312,7 @@ fn run_agent(
                 let (count, avg_q) = cluster_stats.get(q.cluster_tag).copied().unwrap_or((0, 0.0));
                 count < 3 || avg_q < 0.4
             }
-            AgentType::NousConfidence => {
+            AgentType::NoosConfidence => {
                 let turn = session.process_message(q.prompt);
                 turn.signals.strategy.is_none() || turn.signals.confidence < 0.4
             }
@@ -338,7 +338,7 @@ fn run_agent(
             entry.1 = (entry.1 * (entry.0 - 1) as f64 + model_quality) / entry.0 as f64;
         }
 
-        // Close the Nous loop.
+        // Close the Noos loop.
         //
         // Two-branch design (recorded 2026-04-14 phase 13 continuation #4):
         // - Abstained: no LLM call occurred, so report zero cost via `track_cost(0.0)`.
@@ -348,7 +348,7 @@ fn run_agent(
         // - Answered: report cost proportional to LLM work (proxy via model_quality —
         //   confident answers typically cost more compute than uncertain ones; calibrate
         //   once real perplexity signal is wired).
-        if matches!(agent_type, AgentType::NousConfidence) {
+        if matches!(agent_type, AgentType::NoosConfidence) {
             if abstain {
                 session.track_cost(0.0);
             } else {
@@ -373,11 +373,11 @@ fn run_agent(
     }
 }
 
-// ─── Pre-trained LearnedState (warmup for Nous) ─────────────────────────
+// ─── Pre-trained LearnedState (warmup for Noos) ─────────────────────────
 
 #[cfg(feature = "candle")]
 fn pretrained_state() -> LearnedState {
-    // Warmup cluster observations so Nous has per-cluster recommendations
+    // Warmup cluster observations so Noos has per-cluster recommendations
     // on Answerable + Mid clusters, but NOT on gibberish clusters.
     let mut ls = LearnedState::default();
 
@@ -385,15 +385,15 @@ fn pretrained_state() -> LearnedState {
     // The training prompts below ("query about color") produce topic hashes
     // based on words {"query", "about", "color"}, NOT the eval prompts'
     // topic hashes (e.g., {"the", "sky", "clear", "day", "typically"}).
-    // Nous's cluster-keyed learned state therefore does NOT match the eval
-    // query clusters, so Nous effectively enters eval with no prior data
+    // Noos's cluster-keyed learned state therefore does NOT match the eval
+    // query clusters, so Noos effectively enters eval with no prior data
     // despite the warmup.
     //
     // Fix required when wiring real perplexity signal (next session):
     // use the ACTUAL eval prompts (or parametrized variants) as training
     // queries so the topic-hash clusters match. Current skeleton does not
     // attempt this — the TIE result it produces should be read as
-    // "Nous-confidence + empty-LearnedState ≈ smart-baseline + empty
+    // "Noos-confidence + empty-LearnedState ≈ smart-baseline + empty
     // cluster_stats," not as a real metacognition comparison.
     for tag in &["color", "science-basic", "geography", "math-basic",
                  "vocabulary", "history", "astronomy", "literature"] {

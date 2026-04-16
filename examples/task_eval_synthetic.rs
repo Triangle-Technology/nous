@@ -8,31 +8,31 @@
 //!
 //! ## What this harness tests
 //!
-//! Claim: Nous's cross-session LearnedState lets warm-start agents skip the
+//! Claim: Noos's cross-session LearnedState lets warm-start agents skip the
 //! discovery phase that simple-retry agents must repeat for each category.
 //!
 //! Setup:
 //! - 3 task categories, each with one correct strategy.
-//! - A training session pre-exposes Nous to all categories → exported LearnedState.
+//! - A training session pre-exposes Noos to all categories → exported LearnedState.
 //! - Eval: K-turn sequence with category order shuffled by seed.
-//! - Baseline: simple quality-threshold retry, no Nous.
-//! - Nous warm: imports training LearnedState, uses `signals.strategy`.
+//! - Baseline: simple quality-threshold retry, no Noos.
+//! - Noos warm: imports training LearnedState, uses `signals.strategy`.
 //! - ≥3 seeds. Report per-seed and aggregated mean ± stddev.
 //!
 //! ## What this harness is (and isn't)
 //!
 //! - IS: a skeleton demonstrating the fair-comparison shape. Runs quickly,
 //!   no external deps, no candle.
-//! - IS NOT: a validation of Nous. The task is synthetic and deterministic;
+//! - IS NOT: a validation of Noos. The task is synthetic and deterministic;
 //!   the simulated LLM returns hand-authored qualities. A positive result
-//!   here shows the harness works; a negative result shows Nous's
+//!   here shows the harness works; a negative result shows Noos's
 //!   cross-session story fails even in the favorable synthetic case.
 //! - For real validation, Tier 2 benchmarks (LoCoMo, MetaMedQA) apply.
 //!
 //! ## Interpreting results
 //!
 //! See `docs/task-eval-design.md` §5 for what would count as "claim validated".
-//! Headline: Nous warm must beat simple retry by ≥2 stddev on time-to-first-correct
+//! Headline: Noos warm must beat simple retry by ≥2 stddev on time-to-first-correct
 //! to be anything more than noise on this synthetic task.
 
 use noos::session::CognitiveSession;
@@ -104,12 +104,12 @@ fn simulate_llm(strategy: AppStrategy, category: Category) -> (String, f64) {
             (AppStrategy::DirectAnswer, _) => 0.15,
         }
     };
-    // Response formats matter: Nous's `detect_response_strategy` uses regex
+    // Response formats matter: Noos's `detect_response_strategy` uses regex
     // anchors that require specific shapes (multi-line numbered for StepByStep,
     // ≥2 question marks for ClarifyFirst). These responses are chosen to
     // unambiguously trigger the intended detection — a REAL app running against
     // real LLMs should prompt its model toward these formats when it wants
-    // Nous to recognize the strategy correctly. See `detect_response_strategy`
+    // Noos to recognize the strategy correctly. See `detect_response_strategy`
     // in src/cognition/detector.rs for exact patterns.
     let text = match strategy {
         AppStrategy::DirectAnswer => "Short answer.".to_string(),
@@ -198,11 +198,11 @@ fn record_correct(
     }
 }
 
-// ─── Baseline: simple-retry, no Nous ──────────────────────────────────────
+// ─── Baseline: simple-retry, no Noos ──────────────────────────────────────
 
 const QUALITY_THRESHOLD_FOR_RETRY: f64 = 0.5;
 
-/// Per-category strategy memory at application level (no Nous).
+/// Per-category strategy memory at application level (no Noos).
 /// Models a plain app that remembers "what worked last time" per category,
 /// which is a stronger baseline than a single strategy for all.
 fn run_baseline(sequence: &[Category]) -> EvalMetrics {
@@ -235,7 +235,7 @@ fn run_baseline(sequence: &[Category]) -> EvalMetrics {
     metrics
 }
 
-// ─── Nous warm-start: imports LearnedState from training ─────────────────
+// ─── Noos warm-start: imports LearnedState from training ─────────────────
 
 fn train_prior_session() -> LearnedState {
     let mut session = CognitiveSession::new();
@@ -274,7 +274,7 @@ fn run_nous_warm(sequence: &[Category], training: LearnedState) -> EvalMetrics {
             .entry(category)
             .or_insert(AppStrategy::DirectAnswer);
 
-        // Prefer Nous's learned recommendation; fall back to per-category retry.
+        // Prefer Noos's learned recommendation; fall back to per-category retry.
         let strategy = if let Some(rec) = turn.signals.strategy {
             map_rec(rec, *current)
         } else if let Some(&q) = per_category_last_quality.get(&category) {
@@ -398,7 +398,7 @@ fn main() {
         let sequence = generate_sequence(seed, turns);
 
         let baseline = run_baseline(&sequence);
-        let nous = run_nous_warm(&sequence, training.clone());
+        let noos = run_nous_warm(&sequence, training.clone());
 
         println!(
             "  {:<8} {:<28} {:>8.3} {:>8.2} {:>14.2}",
@@ -411,14 +411,14 @@ fn main() {
         println!(
             "  {:<8} {:<28} {:>8.3} {:>8.2} {:>14.2}",
             seed,
-            "nous warm",
-            nous.avg_quality,
-            nous.total_cost,
-            nous.first_correct_summary(never_penalty)
+            "noos warm",
+            noos.avg_quality,
+            noos.total_cost,
+            noos.first_correct_summary(never_penalty)
         );
 
         baseline_runs.push(baseline);
-        nous_runs.push(nous);
+        nous_runs.push(noos);
     }
 
     let baseline_agg = aggregate(&baseline_runs, never_penalty);
@@ -426,10 +426,10 @@ fn main() {
 
     println!("\nAggregated (mean ± stddev):");
     print_aggregated("baseline (simple retry)", &baseline_agg);
-    print_aggregated("nous warm", &nous_agg);
+    print_aggregated("noos warm", &nous_agg);
 
     // Report comparison with the 2-stddev bar from task-eval-design.md §5.
-    println!("\n2-stddev bar check (Nous must exceed baseline by ≥2 baseline stddev):");
+    println!("\n2-stddev bar check (Noos must exceed baseline by ≥2 baseline stddev):");
     let quality_delta = nous_agg.avg_quality_mean - baseline_agg.avg_quality_mean;
     let first_correct_delta = baseline_agg.first_correct_mean - nous_agg.first_correct_mean;
 
@@ -458,9 +458,9 @@ fn main() {
     );
 
     println!("\nNotes:");
-    println!("  - This is a synthetic task. PASS here = harness behaves, not 'Nous works'.");
+    println!("  - This is a synthetic task. PASS here = harness behaves, not 'Noos works'.");
     println!("  - 3 seeds is the MINIMUM per CR5. Real claims want more.");
     println!("  - Tier 2 benchmarks (LoCoMo, MetaMedQA) are what publishable claims require.");
-    println!("  - If Nous FAILS on this synthetic favorable case, the cross-session");
+    println!("  - If Noos FAILS on this synthetic favorable case, the cross-session");
     println!("    claim is not ready — don't ship the claim.");
 }

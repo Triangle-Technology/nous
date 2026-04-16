@@ -5,7 +5,7 @@
 //! This analysis feeds different text types through a pretrained Mamba model
 //! and records activations at every layer. The goal: understand what cognitive
 //! information the model already encodes in its hidden states BEFORE any
-//! Nous intervention.
+//! Noos intervention.
 //!
 //! From intervention.md: "Model đã có implicit cognitive signals từ training."
 //! This probe answers: What signals? Where? How strong?
@@ -17,11 +17,11 @@
 //! 3. Gate W_read analysis — what dimensions did the trained gate learn to read?
 //! 4. SSM state analysis — does recurrent memory differentiate content?
 
-use noos::errors::NousResult;
+use noos::errors::NoosResult;
 use noos::inference::cognitive_gate::CognitiveGateConfig;
 use noos::inference::mamba::{CognitiveMambaWithGate, HfTokenizer, MambaConfig};
 use noos::inference::model::LocalModel;
-use noos::inference::tokenizer::NousTokenizer;
+use noos::inference::tokenizer::NoosTokenizer;
 use noos::math::vector::cosine_similarity;
 
 /// Test prompts covering different cognitive contexts.
@@ -36,8 +36,8 @@ const PROBES: &[(&str, &str)] = &[
     ("Social", "Hey thanks so much for helping me yesterday, I really appreciate you taking the time to explain"),
 ];
 
-fn main() -> NousResult<()> {
-    println!("=== Nous: Hidden State Probe ===\n");
+fn main() -> NoosResult<()> {
+    println!("=== Noos: Hidden State Probe ===\n");
 
     let model_id = "state-spaces/mamba-130m-hf";
     let config = MambaConfig::mamba_130m();
@@ -64,7 +64,7 @@ fn main() -> NousResult<()> {
         let tokens = tokenizer.encode(text, false)?;
         let result = model
             .forward_probe(&tokens)
-            .map_err(|e| noos::NousError::Internal(format!("Probe error for {label}: {e}")))?;
+            .map_err(|e| noos::NoosError::Internal(format!("Probe error for {label}: {e}")))?;
         all_results.push((*label, result));
     }
 

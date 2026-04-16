@@ -1,4 +1,4 @@
-# Nous Principles
+# Noos Principles
 
 10 non-negotiable rules. Every change MUST comply with ALL 10.
 
@@ -38,7 +38,7 @@ Three levels of grounding required:
 2. **Constant level** — every threshold/rate/weight has a `///` comment citing the paper or derivation
 3. **Algorithm level** — the core logic maps to a named brain mechanism describing **substrate + transformation + gating**
 
-If there's no neuroscience justification, the code doesn't belong in Nous. Move it to the application layer.
+If there's no neuroscience justification, the code doesn't belong in Noos. Move it to the application layer.
 
 ### Mechanism vs Metaphor test
 
@@ -202,7 +202,7 @@ Three sub-rules:
 // cosine_similarity(mismatched) → 0.0
 ```
 
-**Fail-open ≠ swallow errors**: Return a safe default AND preserve error context. Silently discarding errors makes debugging impossible. Rust's type system enables this — prefer `Result<T, NousError>` over `Option<T>` for functions that can fail, so callers can `.unwrap_or_default()` while still having access to the error for logging.
+**Fail-open ≠ swallow errors**: Return a safe default AND preserve error context. Silently discarding errors makes debugging impossible. Rust's type system enables this — prefer `Result<T, NoosError>` over `Option<T>` for functions that can fail, so callers can `.unwrap_or_default()` while still having access to the error for logging.
 
 ```rust
 // ❌ Swallows error — caller never knows what went wrong
@@ -211,13 +211,13 @@ pub fn allocate(ctx: &Ctx) -> Option<Allocation> {
 }
 
 // ✅ Fail-open with context — caller can log or ignore
-pub fn allocate(ctx: &Ctx) -> Result<Allocation, NousError> {
+pub fn allocate(ctx: &Ctx) -> Result<Allocation, NoosError> {
     // caller: allocate(ctx).unwrap_or_default()  — fail-open
     // caller: allocate(ctx).inspect_err(|e| warn!("{e}")).unwrap_or_default()  — fail-open + log
 }
 ```
 
-**Why**: Brain doesn't crash — it degrades. If the thalamus fails, cortex still processes (just without filtering). If the amygdala fails, cognition continues (just without emotional coloring). Nous must behave the same way. But the brain also has monitoring — ACC detects when something went wrong. Nous needs that too.
+**Why**: Brain doesn't crash — it degrades. If the thalamus fails, cortex still processes (just without filtering). If the amygdala fails, cognition continues (just without emotional coloring). Noos must behave the same way. But the brain also has monitoring — ACC detects when something went wrong. Noos needs that too.
 
 ---
 
@@ -316,7 +316,7 @@ When adding a new cognitive module (the most common operation in Phase 3-5), fol
 
 ## P9: Compensate & Don't Duplicate — two related rules
 
-**Rule**: Nous NEVER duplicates what the model already does (P9b), and when
+**Rule**: Noos NEVER duplicates what the model already does (P9b), and when
 intervening on state retention it does so **compensatorily**, not by
 amplifying existing processing (P9a). These are conceptually distinct —
 **P9b is universal**, **P9a is metric-scoped**.
@@ -345,11 +345,11 @@ gain direction is an **empirical question per metric** — not axiomatic.
 
 - SC text injection: 378-call eval across 3 models — every brain-state
   text injection HURT quality (a long-form-quality proxy).
-- Nous perplexity eval (2026-04-10, `examples/diagnose_harm.rs`): gain > 1.0
+- Noos perplexity eval (2026-04-10, `examples/diagnose_harm.rs`): gain > 1.0
   hurts monotonically (+5.21% at 1.2, +15.7% at 1.5); gain < 1.0 helps
   monotonically (-2.87% at 0.8, -1.86% at 0.9). Controls perfect.
 - CognitiveGate self-learning: alpha ≈ 0 for routine content — model's
-  SSM state already encodes what Nous would compute.
+  SSM state already encodes what Noos would compute.
 - Bottleneck compound test (2026-04-13): T2 compensatory -1.86%, T4
   compensatory +1.70%, T2+T4 -0.06% — both in compensatory direction on
   perplexity, no amplification hurts less.
@@ -358,7 +358,7 @@ gain direction is an **empirical question per metric** — not axiomatic.
 
 - Bottleneck paper (arXiv 2602.22719): uniform amplify 5× → +8.27% average
   across 5 SSMs / 6 task-accuracy benchmarks.
-- Same intervention in Nous perplexity eval: uniform amplify 5×
+- Same intervention in Noos perplexity eval: uniform amplify 5×
   catastrophic (+242% on emotional text).
 - **Conclusion**: metric determines direction, not intervention shape.
 
@@ -405,7 +405,7 @@ conflict (SC 378-call finding).
 **Language-specific regex is a P9b red flag**: any regex matching
 sentiment/intent/topic lexicons in a specific language (English "angry",
 Vietnamese "bực", etc.) is explicit duplication of the LLM's native
-language understanding. This rule has been under-enforced in Nous — the
+language understanding. This rule has been under-enforced in Noos — the
 2026-04-14 audit found leaked SC-era regex in 4 live modules
 (`emotional.rs`, `thalamic_gate.rs`, `detector.rs`,
 `resource_allocator.rs`). A 5th module (`integration.rs`) held such
@@ -420,9 +420,9 @@ patterns and was removed as orphan in phase 13 2026-04-14.
   in tensor space is language-neutral by construction.
 - Application-layer classification (if the app genuinely needs intent or
   sentiment as a control signal, the app calls the LLM to classify, not
-  Nous).
+  Noos).
 
-### What the model actually lacks (valid Nous territory regardless of rule)
+### What the model actually lacks (valid Noos territory regardless of rule)
 
 - Persistent state across conversations (no hippocampus)
 - Bounded SSM state capacity (compensatory retention via gain < 1.0 — P9a)
@@ -440,7 +440,7 @@ patterns and was removed as orphan in phase 13 2026-04-14.
 
 ### Reverse-engineering from cortex
 
-The wrong question is "what should Nous output?" — this produces metadata,
+The wrong question is "what should Noos output?" — this produces metadata,
 annotations, and generic signals that duplicate cortical work (P9b
 violation).
 
@@ -465,7 +465,7 @@ from observed model deficits, not from brain-inspired design aesthetics.
 
 - Module reads internal state (SSM hidden state) rather than text
 - Module provides persistent state the model lacks across time
-- Module effect is measurable as improvement over no-Nous baseline (any
+- Module effect is measurable as improvement over no-Noos baseline (any
   metric, as long as the metric is declared)
 - Module stays passive when cortex is sufficient (like gate α ≈ 0 for routine)
 - Module gain direction is ≤ 1.0 for perplexity-targeting modules
@@ -494,11 +494,11 @@ For every cognitive module added or reviewed, answer these four questions:
 
 If any of these are "none" or "not specified", find out why before merging. "None" is a valid answer ONLY when justified by neurobiology.
 
-### Nous application
+### Noos application
 
 Current `convergence.rs` runs 5 bidirectional connections in parallel. **This is where ordering must be audited.** Under emotional salience (high arousal), breadth-oriented signals (resource_allocator expanding budget, ignition thresholds lowering) should be gated, not averaged with salient signals.
 
-Post-phase-13 (2026-04-14): the ignition check previously hosted by `integration.rs` was removed with that module. The P10 gating rule — "does the threshold narrow under amygdala salience?" — now lives in `adaptive_thresholds.rs`, which is the single source of gating for Nous. Callers that want the Dehaene-style ignition predicate must call `get_adaptive_threshold()` directly. No cognition module currently wires this; re-wiring is deferred until there is a caller with a measured need.
+Post-phase-13 (2026-04-14): the ignition check previously hosted by `integration.rs` was removed with that module. The P10 gating rule — "does the threshold narrow under amygdala salience?" — now lives in `adaptive_thresholds.rs`, which is the single source of gating for Noos. Callers that want the Dehaene-style ignition predicate must call `get_adaptive_threshold()` directly. No cognition module currently wires this; re-wiring is deferred until there is a caller with a measured need.
 
 ### How to document gating
 
@@ -528,7 +528,7 @@ Without this, the module is incomplete even if its computation is correct.
 Read the citation. Understand why that value was chosen. If you change it, update the citation and document the new justification in the same commit.
 
 ### CR2: Convergence loop invariants are sacred
-The 3 convergence constants (epsilon, max iterations, damping alpha — see `docs/brain-map.md` §7) create the convergence guarantee. Changing them changes the behavior of EVERY message processed by Nous. Require explicit justification with neuroscience or mathematical proof.
+The 3 convergence constants (epsilon, max iterations, damping alpha — see `docs/brain-map.md` §7) create the convergence guarantee. Changing them changes the behavior of EVERY message processed by Noos. Require explicit justification with neuroscience or mathematical proof.
 
 ### CR3: EMA rates are tuned together
 EMA learning rates across modules (see `docs/brain-map.md` per-module constants) balance each other. Slower rates exist where false signals are costly (threats, gate rewards). Faster rates exist where natural change is expected (context topics). Changing one rate in isolation shifts the balance between modules.
@@ -555,4 +555,4 @@ SC nearly abandoned the non-cortical axiom after 3 failed implementations (MODER
 
 **Red flags** you're abandoning prematurely: single-run eval, "philosophical vs empirical" framing, proposing a redesign instead of an addition, unable to name the precise mechanism you should have implemented.
 
-**Reference**: `feedback_principle_vs_data.md` in memory for full template and Nous-specific application.
+**Reference**: `feedback_principle_vs_data.md` in memory for full template and Noos-specific application.

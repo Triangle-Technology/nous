@@ -18,19 +18,19 @@
 //!   (cost 0.2, quality 0.5). Shallow represents a cheaper fallback path.
 //! - Three agents:
 //!   1. **Always-full** (reference): uses full mode until budget can't afford it.
-//!   2. **Cost-threshold** (FAIR BASELINE — no Nous): switches to shallow when
+//!   2. **Cost-threshold** (FAIR BASELINE — no Noos): switches to shallow when
 //!      cumulative cost exceeds budget / 2. Uses only self-tracked cost.
-//!   3. **Nous-conservation**: switches to shallow when `signals.conservation`
-//!      exceeds 0.5. Uses Nous's combined signal.
+//!   3. **Noos-conservation**: switches to shallow when `signals.conservation`
+//!      exceeds 0.5. Uses Noos's combined signal.
 //!
-//! ## Where Nous should win
+//! ## Where Noos should win
 //!
 //! On stressful inputs, `perceive` depletes body_budget via arousal — the
-//! cost-only tracker misses this. Nous's conservation responds; the agent
+//! cost-only tracker misses this. Noos's conservation responds; the agent
 //! switches to shallow earlier on the stress-heavy suffix of the stream,
 //! leaving more budget for later queries.
 //!
-//! ## Where Nous should NOT win
+//! ## Where Noos should NOT win
 //!
 //! On a pure cost-driven stream with no stress variation, conservation
 //! reduces to "budget-below-threshold" and is roughly equivalent to the
@@ -73,7 +73,7 @@ impl QueryKind {
 }
 
 /// Generate a deterministic 20-query stream mixing all 4 kinds.
-/// Fixed seed so baseline vs nous compare on the same sequence.
+/// Fixed seed so baseline vs noos compare on the same sequence.
 fn generate_stream() -> Vec<(QueryKind, String)> {
     // Deterministic interleaving that puts half the stress at the end,
     // exercising the "late stress spike" case where cost-only underestimates.
@@ -181,7 +181,7 @@ fn run_always_full(stream: &[(QueryKind, String)]) -> RunResult {
     r
 }
 
-/// Cost-threshold agent (FAIR baseline, no Nous): switches to shallow when
+/// Cost-threshold agent (FAIR baseline, no Noos): switches to shallow when
 /// cumulative cost crosses budget / 2.
 fn run_cost_threshold(stream: &[(QueryKind, String)]) -> RunResult {
     let mut r = RunResult::default();
@@ -205,10 +205,10 @@ fn run_cost_threshold(stream: &[(QueryKind, String)]) -> RunResult {
     r
 }
 
-/// Nous-conservation agent: uses `signals.conservation` to decide mode.
-/// Calls `process_message` to update Nous's internal state, then reads the
+/// Noos-conservation agent: uses `signals.conservation` to decide mode.
+/// Calls `process_message` to update Noos's internal state, then reads the
 /// signal and acts. Reports cost back via `track_cost` to close the loop.
-/// Threshold at which Nous-conservation agent switches to shallow mode.
+/// Threshold at which Noos-conservation agent switches to shallow mode.
 ///
 /// Calibrated 2026-04-14 against observed signal range: after the sustained
 /// fix, `signals.conservation` tops out around 0.30 over 60 sustained-stress
@@ -340,7 +340,7 @@ fn main() {
     println!("╚══════════════════════════════════════════════════════════════╝\n");
     println!("Tests whether `signals.conservation` helps an app stay within");
     println!("budget while preserving aggregate quality. Synthetic task, fair");
-    println!("comparison — cost-only baseline is the bar Nous must beat.\n");
+    println!("comparison — cost-only baseline is the bar Noos must beat.\n");
 
     let stream = generate_stream();
     let total_stressful = stream.iter().filter(|(k, _)| k.is_stressful()).count();
@@ -353,7 +353,7 @@ fn main() {
 
     let always_full = run_always_full(&stream);
     let cost_threshold = run_cost_threshold(&stream);
-    let nous = run_nous_conservation(&stream);
+    let noos = run_nous_conservation(&stream);
 
     println!("Per-condition summary:");
     println!(
@@ -362,8 +362,8 @@ fn main() {
     );
     println!("  {}", "─".repeat(90));
     print_row("always-full (reference)", &always_full);
-    print_row("cost-threshold (no Nous)", &cost_threshold);
-    print_row("nous-conservation", &nous);
+    print_row("cost-threshold (no Noos)", &cost_threshold);
+    print_row("noos-conservation", &noos);
 
     // Quick dispersion check: since the stream + simulator are deterministic,
     // repeated runs produce bit-identical output. The 3-seed requirement from
@@ -375,29 +375,29 @@ fn main() {
     // Pass/fail against the primary metric: total quality delivered within budget.
     println!("\nComparison (higher total_quality = better):");
     let cost_q = cost_threshold.total_quality;
-    let nous_q = nous.total_quality;
+    let nous_q = noos.total_quality;
     let delta = nous_q - cost_q;
     if delta > 0.5 {
         println!(
-            "  ✓ Nous-conservation beats cost-threshold by {:+.2} total quality.",
+            "  ✓ Noos-conservation beats cost-threshold by {:+.2} total quality.",
             delta
         );
     } else if delta > 0.05 {
         println!(
-            "  ≈ Nous-conservation edges cost-threshold by {:+.2} total quality —",
+            "  ≈ Noos-conservation edges cost-threshold by {:+.2} total quality —",
             delta
         );
         println!("    within noise territory for a synthetic task. Real benchmarks needed.");
     } else if delta.abs() <= 0.05 {
         println!(
-            "  ≈ Nous-conservation matches cost-threshold ({:+.2}) — no discernible advantage",
+            "  ≈ Noos-conservation matches cost-threshold ({:+.2}) — no discernible advantage",
             delta
         );
         println!("    on this stream. Expected: conservation ≈ cost-below-threshold when");
         println!("    stress depletion is not the dominant signal.");
     } else {
         println!(
-            "  ⚠ Nous-conservation UNDERPERFORMS cost-threshold by {:+.2} — investigate.",
+            "  ⚠ Noos-conservation UNDERPERFORMS cost-threshold by {:+.2} — investigate.",
             delta
         );
     }
@@ -487,6 +487,6 @@ fn main() {
     println!("    for real LLM use. Tier 2 benchmarks (real agent streams) apply.");
     println!("  • Conservation signal's value over cost-only tracking is clearest");
     println!("    when stress depletes budget independently of reported cost.");
-    println!("  • If nous == cost-only on this synthetic stream, it means stress");
+    println!("  • If noos == cost-only on this synthetic stream, it means stress");
     println!("    depletion didn't dominate — a real finding, report it honestly.");
 }

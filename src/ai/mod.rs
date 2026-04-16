@@ -10,12 +10,12 @@
 //! `SamplingOverride` and `DeltaModulation` signals that applications apply
 //! to whichever model backend they use.
 //!
-//! Use this module when building Nous-powered applications that need:
+//! Use this module when building Noos-powered applications that need:
 //! - A normalized interface across multiple LLM providers
 //! - Streaming token handling
 //! - Logit-level intervention via `LogitIntervenor` (Tầng 1)
 //!
-//! For purely sync cognitive processing (no LLM calls from inside Nous),
+//! For purely sync cognitive processing (no LLM calls from inside Noos),
 //! `CognitiveSession` + `CognitiveSignals` is sufficient.
 
 pub mod intervention;

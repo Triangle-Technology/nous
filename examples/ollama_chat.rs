@@ -1,4 +1,4 @@
-//! Ollama Chat — Nous cognitive engine + real model via Ollama API.
+//! Ollama Chat — Noos cognitive engine + real model via Ollama API.
 //!
 //! Prerequisites:
 //!   1. Install Ollama: https://ollama.com
@@ -8,7 +8,7 @@
 //! Run: `cargo run --example ollama_chat`
 //! Or with custom model: `cargo run --example ollama_chat -- mistral`
 //!
-//! This demonstrates Nous's cognitive modulation affecting REAL model output:
+//! This demonstrates Noos's cognitive modulation affecting REAL model output:
 //! - Calm input → balanced temperature → varied responses
 //! - Stressed input → lower temperature + frequency penalty → focused responses
 //! - Over time: strategy learning, body budget depletion/recovery
@@ -26,7 +26,7 @@ fn main() {
         .nth(1)
         .unwrap_or_else(|| DEFAULT_MODEL.to_string());
 
-    println!("=== Nous + Ollama Chat ===");
+    println!("=== Noos + Ollama Chat ===");
     println!("Model: {model}");
     println!("Cognitive modulation: ON (temperature, top_p, penalties from brain state)");
     println!("Type 'quit' to exit, 'state' to show cognitive state.\n");

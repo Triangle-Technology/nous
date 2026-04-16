@@ -2,7 +2,7 @@
 //!
 //! Run: `cargo run --features candle --example eval_intervention`
 //!
-//! Tests whether Nous's subcortical modulation (Tầng 1 + 2) creates
+//! Tests whether Noos's subcortical modulation (Tầng 1 + 2) creates
 //! measurable, meaningful differences in model behavior.
 //!
 //! For each scenario:
@@ -27,7 +27,7 @@ use noos::inference::mamba::{CognitiveMambaModel, CognitiveMambaWithGate, HfToke
 #[cfg(feature = "candle")]
 use noos::inference::model::LocalModel;
 #[cfg(feature = "candle")]
-use noos::inference::tokenizer::NousTokenizer;
+use noos::inference::tokenizer::NoosTokenizer;
 #[cfg(feature = "candle")]
 use noos::math::softmax::softmax_f32;
 #[cfg(feature = "candle")]
@@ -81,7 +81,7 @@ struct ScenarioResult {
 
 #[cfg(feature = "candle")]
 fn run() {
-    println!("=== Nous Eval: Does Non-Cortical Processing Matter? ===\n");
+    println!("=== Noos Eval: Does Non-Cortical Processing Matter? ===\n");
 
     // ── Load model ──
     let model_id = "state-spaces/mamba-130m-hf";

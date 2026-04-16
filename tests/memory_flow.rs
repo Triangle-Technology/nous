@@ -5,8 +5,8 @@
 //! 2. Call hybrid_recall on pre-loaded atoms (sync, no async runtime needed)
 //! 3. Store atoms through the MemoryStore trait
 //!
-//! Nous memory is intentionally sync-retrievable: applications own async I/O
-//! (loading from database/disk), Nous owns cognitive computation over loaded
+//! Noos memory is intentionally sync-retrievable: applications own async I/O
+//! (loading from database/disk), Noos owns cognitive computation over loaded
 //! atoms. This separation keeps CognitiveSession sync while supporting
 //! persistent memory backends.
 
@@ -51,7 +51,7 @@ fn make_atom(id: &str, content: &str, topics: Vec<String>) -> MemoryAtom {
 
 #[test]
 fn hybrid_recall_finds_topic_match() {
-    // Application loads its atoms (sync in Nous; async I/O is app's concern).
+    // Application loads its atoms (sync in Noos; async I/O is app's concern).
     let atoms = vec![
         make_atom("a1", "Rust async basics", vec!["rust".into(), "async".into()]),
         make_atom("a2", "Python type hints", vec!["python".into(), "types".into()]),

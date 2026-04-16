@@ -9,7 +9,7 @@
 use async_trait::async_trait;
 use serde::{Deserialize, Serialize};
 
-use crate::errors::NousResult;
+use crate::errors::NoosResult;
 
 /// AI provider identifier.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
@@ -85,24 +85,24 @@ pub trait AiProvider: Send + Sync {
     fn provider_type(&self) -> AiProviderType;
 
     /// Non-streaming completion.
-    async fn complete(&self, request: CompletionRequest) -> NousResult<CompletionResponse>;
+    async fn complete(&self, request: CompletionRequest) -> NoosResult<CompletionResponse>;
 
     /// Streaming completion — returns chunks via channel.
     async fn stream(
         &self,
         request: CompletionRequest,
         sender: tokio::sync::mpsc::Sender<StreamChunk>,
-    ) -> NousResult<()>;
+    ) -> NoosResult<()>;
 }
 
 /// Embedding provider trait — separate from completion.
 ///
-/// Nous may use different providers for completion vs embedding
+/// Noos may use different providers for completion vs embedding
 /// (e.g., Claude for completion, OpenAI for embeddings).
 #[async_trait]
 pub trait EmbeddingProvider: Send + Sync {
     /// Generate embedding vector for text.
-    async fn embed(&self, text: &str) -> NousResult<Vec<f32>>;
+    async fn embed(&self, text: &str) -> NoosResult<Vec<f32>>;
 
     /// Embedding dimension size.
     fn dimension(&self) -> usize;

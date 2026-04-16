@@ -1,4 +1,4 @@
-//! Tier 1.3 multi-signal eval — does Nous compound on a mixed workload?
+//! Tier 1.3 multi-signal eval — does Noos compound on a mixed workload?
 //!
 //! Run: `cargo run --example task_eval_multi_signal`
 //!
@@ -7,8 +7,8 @@
 //! - Tier 1.2 (`task_eval_conservation.rs`): conservation signal vs cost-threshold.
 //!
 //! Tier 1.3 asks the harder question: **when a workload needs multiple
-//! signals, does Nous compound their value vs a smart baseline that uses
-//! equivalent app-level tracking?** A weak result here ("Nous matches smart
+//! signals, does Noos compound their value vs a smart baseline that uses
+//! equivalent app-level tracking?** A weak result here ("Noos matches smart
 //! baseline") would mean the allostatic claim is architecturally fine but
 //! doesn't beat a competent engineer writing app-level state.
 //!
@@ -24,20 +24,20 @@
 //!
 //! 1. **Naive** (reference): single strategy (DirectAnswer), no adaptation,
 //!    serves until budget runs out. Shows the floor.
-//! 2. **Smart baseline** (FAIR BASELINE, no Nous): tracks cost, per-category
+//! 2. **Smart baseline** (FAIR BASELINE, no Noos): tracks cost, per-category
 //!    strategy memory (last-used + rotate on low quality), switches to
 //!    shallow when cost > budget/2. This is what a competent engineer builds
-//!    without Nous — the bar Nous-full must beat to claim allostatic value.
-//! 3. **Nous-full pipeline**: warm-started `CognitiveSession` pre-trained on
+//!    without Noos — the bar Noos-full must beat to claim allostatic value.
+//! 3. **Noos-full pipeline**: warm-started `CognitiveSession` pre-trained on
 //!    categories 1-3, uses `signals.strategy` for learned recommendations,
 //!    `signals.conservation > 0.2` to switch to shallow mode, closed loop
 //!    via `track_cost` + `process_response`.
 //!
 //! ## What would a positive result look like
 //!
-//! Nous-full total_quality > smart_baseline total_quality by ≥ ~1.0 on a
+//! Noos-full total_quality > smart_baseline total_quality by ≥ ~1.0 on a
 //! 24-query stream (equivalent of 1+ free "expensive-success" slots gained).
-//! If Nous matches smart baseline within noise, the allostatic claim is
+//! If Noos matches smart baseline within noise, the allostatic claim is
 //! infrastructure-only — fine for building on, but not by itself a value
 //! story for LLM applications.
 
@@ -49,11 +49,11 @@ use std::collections::BTreeMap;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
 enum Category {
-    // Pre-trained categories (Nous has prior LearnedState for these).
+    // Pre-trained categories (Noos has prior LearnedState for these).
     Debug,
     Lookup,
     Clarify,
-    // Novel categories (Nous has no prior data — must discover, same as baseline).
+    // Novel categories (Noos has no prior data — must discover, same as baseline).
     Analyze,
     Summarize,
 }
@@ -144,7 +144,7 @@ fn simulate_llm(strategy: AppStrategy, category: Category, mode: Mode) -> (Strin
         (Category::Analyze, AppStrategy::StepByStep, Mode::Full) => {
             // Single-line numbered — ambiguous format (regression case from
             // phase 2). Safe detection should return None here → consolidate
-            // doesn't record this as StepByStep → Nous must still succeed
+            // doesn't record this as StepByStep → Noos must still succeed
             // at the TASK even if strategy-learning rejects the turn.
             "1. First tradeoff. 2. Second tradeoff. 3. Third tradeoff.".to_string()
         }
@@ -200,7 +200,7 @@ fn generate_stream() -> Vec<(Category, String)> {
         .collect()
 }
 
-// ─── Pre-training for warm-start (Nous only) ──────────────────────────────
+// ─── Pre-training for warm-start (Noos only) ──────────────────────────────
 
 fn train_prior_session() -> LearnedState {
     let mut session = CognitiveSession::new();
@@ -280,9 +280,9 @@ fn run_naive(stream: &[(Category, String)]) -> RunResult {
     r
 }
 
-// ─── Agent 2: Smart baseline (no Nous) ────────────────────────────────────
+// ─── Agent 2: Smart baseline (no Noos) ────────────────────────────────────
 //
-// Everything a competent engineer would build WITHOUT Nous:
+// Everything a competent engineer would build WITHOUT Noos:
 // - Per-category strategy memory (remembers last successful strategy).
 // - Rotation on low quality.
 // - Cost tracking + conservation (shallow mode once spending crosses budget/2).
@@ -330,7 +330,7 @@ fn run_smart_baseline(stream: &[(Category, String)]) -> RunResult {
     r
 }
 
-// ─── Agent 3: Nous full pipeline (warm-started + conservation-aware) ─────
+// ─── Agent 3: Noos full pipeline (warm-started + conservation-aware) ─────
 
 fn map_rec(r: ResponseStrategy, fallback: AppStrategy) -> AppStrategy {
     match r {
@@ -341,7 +341,7 @@ fn map_rec(r: ResponseStrategy, fallback: AppStrategy) -> AppStrategy {
     }
 }
 
-/// Switch threshold for Nous-conservation (calibrated in phase 6 to match
+/// Switch threshold for Noos-conservation (calibrated in phase 6 to match
 /// the signal's operating range under realistic mixed workload).
 const NOUS_CONSERVATION_THRESHOLD: f64 = 0.2;
 
@@ -362,7 +362,7 @@ fn run_nous_full(stream: &[(Category, String)], training: LearnedState) -> RunRe
         }
         let mode = if in_shallow { Mode::Shallow } else { Mode::Full };
 
-        // Strategy selection: prefer Nous's learned recommendation (cross-session).
+        // Strategy selection: prefer Noos's learned recommendation (cross-session).
         // Fall back to per-category app-level tracking + retry.
         let current = per_category_strategy
             .entry(*cat)
@@ -434,7 +434,7 @@ fn main() {
     println!("╔══════════════════════════════════════════════════════════════╗");
     println!("║  task_eval_multi_signal — Tier 1.3 signal integration test   ║");
     println!("╚══════════════════════════════════════════════════════════════╝\n");
-    println!("Asks whether Nous compounds reward learning + conservation +");
+    println!("Asks whether Noos compounds reward learning + conservation +");
     println!("safe detection on a mixed workload, vs a smart app-level baseline.\n");
 
     let stream = generate_stream();
@@ -455,7 +455,7 @@ fn main() {
 
     let naive = run_naive(&stream);
     let smart = run_smart_baseline(&stream);
-    let nous = run_nous_full(&stream, training);
+    let noos = run_nous_full(&stream, training);
 
     println!("Per-condition summary:");
     println!(
@@ -464,26 +464,26 @@ fn main() {
     );
     println!("  {}", "─".repeat(100));
     print_row("naive (reference)", &naive);
-    print_row("smart baseline (no Nous)", &smart);
-    print_row("nous-full pipeline", &nous);
+    print_row("smart baseline (no Noos)", &smart);
+    print_row("noos-full pipeline", &noos);
 
     println!();
     print_novel_breakdown("smart baseline", &smart);
-    print_novel_breakdown("nous-full", &nous);
+    print_novel_breakdown("noos-full", &noos);
 
     println!("\nPrimary metric (total_quality within budget):");
     let smart_q = smart.total_quality;
-    let nous_q = nous.total_quality;
+    let nous_q = noos.total_quality;
     let delta = nous_q - smart_q;
     if delta >= 1.0 {
         println!(
-            "  ✓ Nous-full beats smart baseline by {:+.2} total quality.",
+            "  ✓ Noos-full beats smart baseline by {:+.2} total quality.",
             delta
         );
         println!("    Signal compounding produces meaningful compound benefit on this workload.");
     } else if delta >= 0.2 {
         println!(
-            "  ≈ Nous-full edges smart baseline by {:+.2} total quality —",
+            "  ≈ Noos-full edges smart baseline by {:+.2} total quality —",
             delta
         );
         println!(
@@ -491,7 +491,7 @@ fn main() {
         );
     } else if delta.abs() <= 0.2 {
         println!(
-            "  ≈ Nous-full matches smart baseline ({:+.2}) — signals don't compound",
+            "  ≈ Noos-full matches smart baseline ({:+.2}) — signals don't compound",
             delta
         );
         println!(
@@ -499,7 +499,7 @@ fn main() {
         );
     } else {
         println!(
-            "  ⚠ Nous-full UNDERPERFORMS smart baseline by {:+.2} — investigate.",
+            "  ⚠ Noos-full UNDERPERFORMS smart baseline by {:+.2} — investigate.",
             delta
         );
     }
@@ -510,13 +510,13 @@ fn main() {
     } else {
         0.0
     };
-    let nous_rate = if nous.queries_served > 0 {
-        nous.correct_strategy_used as f64 / nous.queries_served as f64
+    let nous_rate = if noos.queries_served > 0 {
+        noos.correct_strategy_used as f64 / noos.queries_served as f64
     } else {
         0.0
     };
     println!(
-        "  smart={:.1}%  nous={:.1}%  delta={:+.1}%",
+        "  smart={:.1}%  noos={:.1}%  delta={:+.1}%",
         smart_rate * 100.0,
         nous_rate * 100.0,
         (nous_rate - smart_rate) * 100.0
@@ -525,7 +525,7 @@ fn main() {
     println!("\nNotes:");
     println!("  • Synthetic task — behavior illustration, not real-LLM validation.");
     println!("  • Smart baseline deliberately uses competent app-level tracking.");
-    println!("    Nous's advantage must come from signal quality, not baseline weakness.");
-    println!("  • Novel categories (Analyze, Summarize) test whether Nous adapts");
+    println!("    Noos's advantage must come from signal quality, not baseline weakness.");
+    println!("  • Novel categories (Analyze, Summarize) test whether Noos adapts");
     println!("    without prior training — cold-session behavior within a stream.");
 }
