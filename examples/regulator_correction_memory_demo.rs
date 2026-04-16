@@ -250,6 +250,17 @@ fn main() {
             println!();
             println!("The app / LLM can now read these examples BEFORE generating,");
             println!("avoiding the same class of mistake this user has corrected repeatedly.");
+            println!();
+            // Path B (0.2.2): apps no longer have to hand-thread the
+            // example_corrections into the prompt. `inject_corrections`
+            // returns the prompt prefixed with a prelude on
+            // ProceduralWarning, or the prompt unchanged otherwise.
+            println!("── Path B: prompt injection helper (0.2.2) ────────────");
+            let injected = regulator.inject_corrections(next_msg);
+            for line in injected.lines() {
+                println!("  {line}");
+            }
+            println!();
         }
         Decision::Continue => {
             println!("(Unexpected) Regulator returned Continue.");

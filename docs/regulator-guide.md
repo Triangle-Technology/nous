@@ -153,7 +153,38 @@ Each `CorrectionPattern` contains:
   newest first. These are what you pass to the LLM.
 - `learned_from_turns`, `confidence` — provenance counters.
 
-Recommended app flow:
+Recommended app flow (0.2.2 helpers, preferred):
+
+```rust
+let user_message: String = /* ... */;
+
+regulator.on_event(LLMEvent::TurnStart {
+    user_message: user_message.clone(),
+});
+
+// Returns the user's prompt unchanged if no pattern applies, or
+// prefixes it with a bulleted list of past corrections. Equivalent
+// to reading `decide() == ProceduralWarning` and hand-threading the
+// `example_corrections` into the prompt.
+let prompt_with_memory = regulator.inject_corrections(&user_message);
+
+// ... call LLM with prompt_with_memory ...
+```
+
+For custom templating (different header, system-message placement,
+multi-turn formats) use the lower-level primitive:
+
+```rust
+match regulator.corrections_prelude() {
+    Some(prelude) => {
+        // Place `prelude` in a system message, append as a tool hint, etc.
+        build_system_prompt(&prelude, &user_message)
+    }
+    None => user_message,
+}
+```
+
+Manual threading (equivalent to 0.2.1 and earlier, no helper):
 
 ```rust
 // `LLMEvent::TurnStart` takes ownership of the user_message String,

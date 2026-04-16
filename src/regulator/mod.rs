@@ -709,6 +709,85 @@ impl Regulator {
     pub fn session_mut(&mut self) -> &mut CognitiveSession {
         &mut self.session
     }
+
+    // ── Procedural pattern injection (Path B, 0.2.2) ──
+    //
+    // Before 0.2.2, apps had to hand-thread `ProceduralWarning`
+    // `example_corrections` into the next prompt themselves (see the
+    // recipe in regulator-guide.md §3.4). That boilerplate is the same
+    // in every integration — these helpers lift it into the crate so
+    // the app layer shrinks to a single method call.
+
+    /// Return a prelude text block if the current turn has a learned
+    /// correction pattern, otherwise `None`.
+    ///
+    /// Call after `LLMEvent::TurnStart` and before invoking the LLM.
+    /// The return value is suitable for prepending to the user's prompt
+    /// (or placing in a system message) so the model can adjust generation
+    /// *before* producing tokens that would repeat a past mistake.
+    ///
+    /// Format (3 example corrections shown):
+    /// ```text
+    /// User has previously corrected responses on this topic with:
+    /// - <most recent correction>
+    /// - <second most recent>
+    /// - <third most recent>
+    /// ```
+    ///
+    /// When the current cluster has multiple patterns (rare — one
+    /// cluster usually maps to one pattern), all `example_corrections`
+    /// are concatenated in pattern order.
+    ///
+    /// Returns `None` when `decide()` is not `ProceduralWarning`, which
+    /// also covers the cases where a higher-priority decision (cost-cap,
+    /// scope-drift) would have intercepted the turn. In those cases the
+    /// app should handle the higher-priority decision before considering
+    /// prompt injection.
+    #[must_use]
+    pub fn corrections_prelude(&self) -> Option<String> {
+        let patterns = match self.decide() {
+            Decision::ProceduralWarning { patterns } => patterns,
+            _ => return None,
+        };
+        let lines: Vec<String> = patterns
+            .iter()
+            .flat_map(|p| &p.example_corrections)
+            .map(|ex| format!("- {ex}"))
+            .collect();
+        if lines.is_empty() {
+            None
+        } else {
+            Some(format!(
+                "User has previously corrected responses on this topic with:\n{}",
+                lines.join("\n")
+            ))
+        }
+    }
+
+    /// Convenience wrapper around [`Regulator::corrections_prelude`]: given
+    /// the user's raw prompt, return it with the correction prelude
+    /// prepended, or return the prompt unchanged if no pattern applies.
+    ///
+    /// Call after `LLMEvent::TurnStart` and before invoking the LLM.
+    ///
+    /// Equivalent to:
+    /// ```ignore
+    /// match regulator.corrections_prelude() {
+    ///     Some(prelude) => format!("{prelude}\n\nCurrent request: {user_prompt}"),
+    ///     None => user_prompt.to_string(),
+    /// }
+    /// ```
+    ///
+    /// For custom templating (different header, system-message placement,
+    /// multi-turn conversation formats) use [`Regulator::corrections_prelude`]
+    /// directly and splice the returned block into your own prompt layout.
+    #[must_use]
+    pub fn inject_corrections(&self, user_prompt: &str) -> String {
+        match self.corrections_prelude() {
+            Some(prelude) => format!("{prelude}\n\nCurrent request: {user_prompt}"),
+            None => user_prompt.to_string(),
+        }
+    }
 }
 
 #[cfg(test)]
@@ -1543,6 +1622,99 @@ mod tests {
         // Both ScopeDriftWarn and ProceduralWarning would fire —
         // priority rule says ScopeDriftWarn wins.
         assert!(matches!(reg.decide(), Decision::ScopeDriftWarn { .. }));
+    }
+
+    // ── Path B: procedural pattern INJECTION (0.2.2) ──────────────────
+
+    #[test]
+    fn corrections_prelude_none_when_no_pattern() {
+        // Contract: with no prior corrections the helper returns None so
+        // the caller doesn't prepend an empty header.
+        let mut reg = Regulator::for_user("user_a");
+        reg.on_event(LLMEvent::TurnStart {
+            user_message: "refactor this function to be async".into(),
+        });
+        assert!(reg.corrections_prelude().is_none());
+    }
+
+    #[test]
+    fn corrections_prelude_returns_formatted_block_after_threshold() {
+        let mut reg = Regulator::for_user("user_a");
+        drive_three_corrections_on(&mut reg, "refactor this function to be async");
+        // Same cluster, new turn — ProceduralWarning should fire
+        // pre-generation (no TurnComplete yet).
+        // Same cluster (keyword-hash of `refactor + async`) — matches
+        // the drive_three_corrections_on seed message so the stored
+        // pattern applies. Changing any topic-bearing word would hash
+        // to a different cluster and the pattern would not fire.
+        reg.on_event(LLMEvent::TurnStart {
+            user_message: "refactor this function to be async".into(),
+        });
+
+        let prelude = reg.corrections_prelude().expect("pattern should apply");
+        assert!(
+            prelude.starts_with("User has previously corrected responses on this topic with:"),
+            "unexpected header: {prelude}"
+        );
+        // All three example_corrections should appear as bulleted lines.
+        for expected in &["no more logs", "stop adding logging please", "don't add logging"] {
+            assert!(
+                prelude.contains(&format!("- {expected}")),
+                "prelude missing correction {expected:?}: {prelude}"
+            );
+        }
+    }
+
+    #[test]
+    fn inject_corrections_returns_unchanged_when_no_pattern() {
+        let mut reg = Regulator::for_user("user_a");
+        reg.on_event(LLMEvent::TurnStart {
+            user_message: "refactor this function to be async".into(),
+        });
+        let prompt = "write me a hello world";
+        assert_eq!(reg.inject_corrections(prompt), prompt);
+    }
+
+    #[test]
+    fn inject_corrections_wraps_prompt_after_threshold() {
+        let mut reg = Regulator::for_user("user_a");
+        drive_three_corrections_on(&mut reg, "refactor this function to be async");
+        reg.on_event(LLMEvent::TurnStart {
+            user_message: "refactor this function to be async".into(),
+        });
+
+        let prompt = "refactor this function to be async";
+        let injected = reg.inject_corrections(prompt);
+        assert!(
+            injected.contains("User has previously corrected responses"),
+            "injected prompt missing prelude header"
+        );
+        assert!(
+            injected.contains(&format!("Current request: {prompt}")),
+            "injected prompt missing current-request marker"
+        );
+        assert!(injected.len() > prompt.len(), "expected expansion");
+    }
+
+    #[test]
+    fn corrections_prelude_none_when_higher_priority_decision_dominates() {
+        // Higher-priority decisions (CircuitBreak, ScopeDriftWarn)
+        // suppress pattern injection. The app is expected to handle
+        // those first — returning None here keeps the API contract
+        // honest ("injection only when decide() is ProceduralWarning").
+        // We use ScopeDriftWarn as the dominator because it requires
+        // only one turn of setup (CostCap needs 3+ quality samples to
+        // fill the QUALITY_DECLINE_WINDOW mean).
+        let mut reg = Regulator::for_user("user_a");
+        drive_three_corrections_on(&mut reg, "refactor this function to be async");
+        reg.on_event(LLMEvent::TurnStart {
+            user_message: "refactor this function to be async".into(),
+        });
+        reg.on_event(LLMEvent::TurnComplete {
+            full_response: "add logging plus database migration new schema".into(),
+        });
+        assert!(matches!(reg.decide(), Decision::ScopeDriftWarn { .. }));
+        assert!(reg.corrections_prelude().is_none());
     }
 
     #[test]
