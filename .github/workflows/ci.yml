@@ -113,16 +113,18 @@ jobs:
           workspaces: bindings/python -> target
           shared-key: python-binding
 
-      - name: Install maturin + test deps
-        run: |
-          python -m pip install --upgrade pip
-          python -m pip install maturin pytest
-
       - name: Build + install the extension
-        run: maturin develop --release
+        run: |
+          python -m venv .venv
+          source .venv/bin/activate
+          pip install --upgrade pip
+          pip install maturin pytest
+          maturin develop --release
 
       - name: Run pytest
-        run: pytest tests/ -v
+        run: |
+          source .venv/bin/activate
+          pytest tests/ -v
 
   # ── Node binding (napi-rs 3.x). The Windows-GNU libnode.dll block
   # ── documented in bindings/node/README.md does NOT apply here —
