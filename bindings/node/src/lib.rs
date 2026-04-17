@@ -185,7 +185,7 @@ impl LLMEvent {
     /// `LLMEvent`s ready to feed `Regulator.onEvent`. Returns an empty
     /// array when the span has no recognized `gen_ai.*` signals.
     /// Throws on malformed JSON.
-    #[napi(factory)]
+    #[napi]
     pub fn from_otel_span_json(span_json: String) -> Result<Vec<LLMEvent>> {
         let value: serde_json::Value = serde_json::from_str(&span_json)
             .map_err(|e| Error::new(Status::InvalidArg, format!("OTel span JSON parse failed: {e}")))?;
