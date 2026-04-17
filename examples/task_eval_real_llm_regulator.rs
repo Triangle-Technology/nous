@@ -108,7 +108,12 @@
 use std::env;
 use std::time::Instant;
 
-use noos::{CircuitBreakReason, Decision, LLMEvent, Regulator};
+use std::fs;
+use std::path::PathBuf;
+
+use serde::{Deserialize, Serialize};
+
+use noos::{CircuitBreakReason, Decision, LLMEvent, Regulator, RegulatorState};
 
 #[path = "regulator_common/mod.rs"]
 mod regulator_common;
@@ -307,6 +312,87 @@ impl RunMetrics {
     }
 }
 
+// ── Checkpoint (S36 post-freeze addition) ─────────────────────────
+//
+// Live-LLM runs on CPU-bound laptops have ~25-35h wallclocks for the
+// full 50-query stream. A single UI freeze / power blip / OS update
+// mid-run would otherwise lose the entire run and force restart from
+// query 0. Checkpoint saves after every completed query so resume
+// costs at most one query's worth of work.
+
+/// Serde-friendly mirror of `RunMetrics` — the `label: &'static str`
+/// field doesn't round-trip through `Deserialize`, so we snapshot
+/// primitives only.
+#[derive(Serialize, Deserialize, Clone, Default)]
+struct CheckpointArm {
+    queries_served: usize,
+    queries_circuit_broken: usize,
+    total_attempts: usize,
+    total_cost: u32,
+    total_quality: f64,
+    scope_drift_flags: usize,
+    procedural_warnings: usize,
+    circuit_break_reasons: Vec<CircuitBreakReason>,
+}
+
+impl CheckpointArm {
+    fn snapshot(m: &RunMetrics) -> Self {
+        Self {
+            queries_served: m.queries_served,
+            queries_circuit_broken: m.queries_circuit_broken,
+            total_attempts: m.total_attempts,
+            total_cost: m.total_cost,
+            total_quality: m.total_quality,
+            scope_drift_flags: m.scope_drift_flags,
+            procedural_warnings: m.procedural_warnings,
+            circuit_break_reasons: m.circuit_break_reasons.clone(),
+        }
+    }
+    fn apply_to(&self, m: &mut RunMetrics) {
+        m.queries_served = self.queries_served;
+        m.queries_circuit_broken = self.queries_circuit_broken;
+        m.total_attempts = self.total_attempts;
+        m.total_cost = self.total_cost;
+        m.total_quality = self.total_quality;
+        m.scope_drift_flags = self.scope_drift_flags;
+        m.procedural_warnings = self.procedural_warnings;
+        m.circuit_break_reasons = self.circuit_break_reasons.clone();
+    }
+}
+
+/// Keyed by `(mode, stream_len, judge_on)` — a checkpoint from one
+/// config is NOT silently applied to another. Auto-deleted on normal
+/// completion of both arms.
+#[derive(Serialize, Deserialize, Default)]
+struct Checkpoint {
+    mode: String,
+    stream_len: usize,
+    judge_on: bool,
+    baseline: CheckpointArm,
+    baseline_done: bool,
+    regulator: CheckpointArm,
+    regulator_state_json: Option<String>,
+}
+
+fn checkpoint_path() -> PathBuf {
+    std::env::temp_dir().join("noos_task_eval_checkpoint.json")
+}
+
+fn load_checkpoint() -> Option<Checkpoint> {
+    let bytes = fs::read(checkpoint_path()).ok()?;
+    serde_json::from_slice(&bytes).ok()
+}
+
+fn save_checkpoint(cp: &Checkpoint) {
+    if let Ok(json) = serde_json::to_string(cp) {
+        let _ = fs::write(checkpoint_path(), json);
+    }
+}
+
+fn clear_checkpoint() {
+    let _ = fs::remove_file(checkpoint_path());
+}
+
 // ── LLM call dispatcher ───────────────────────────────────────────
 
 /// Returns `(response_text, quality, tokens_out)`.
@@ -386,30 +472,65 @@ fn llm_call(
 
 // ── Arm 1: Baseline (no regulator) ────────────────────────────────
 
-fn run_baseline(stream: &[(Cluster, usize)], mode: &str) -> RunMetrics {
+fn run_baseline(stream: &[(Cluster, usize)], mode: &str, cp: &mut Checkpoint) -> RunMetrics {
     let mut m = RunMetrics {
         label: "baseline",
         ..Default::default()
     };
-    for &(cluster, idx) in stream {
+    // Restore prior progress if resuming
+    cp.baseline.apply_to(&mut m);
+    let start_idx = m.queries_served;
+    if start_idx > 0 {
+        eprintln!("[checkpoint] resuming baseline from query {start_idx}/{}", stream.len());
+    }
+
+    for &(cluster, idx) in &stream[start_idx..] {
         let outcome = run_retry_loop(mode, cluster, idx, &mut m, None);
         m.queries_served += 1;
         m.total_attempts += outcome.attempts;
         m.total_quality += outcome.final_quality;
+
+        // Save after every completed query
+        cp.baseline = CheckpointArm::snapshot(&m);
+        save_checkpoint(cp);
     }
+
+    cp.baseline_done = true;
+    save_checkpoint(cp);
     m
 }
 
 // ── Arm 2: Regulator-enabled ──────────────────────────────────────
 
-fn run_regulator(stream: &[(Cluster, usize)], mode: &str) -> RunMetrics {
+fn run_regulator(stream: &[(Cluster, usize)], mode: &str, cp: &mut Checkpoint) -> RunMetrics {
     let mut m = RunMetrics {
         label: "regulator",
         ..Default::default()
     };
-    let mut regulator = Regulator::for_user("eval_user").with_cost_cap(COST_CAP);
+    // Restore prior progress if resuming
+    cp.regulator.apply_to(&mut m);
+    let start_idx = m.queries_served;
 
-    for &(cluster, idx) in stream {
+    let mut regulator = if start_idx > 0 {
+        eprintln!(
+            "[checkpoint] resuming regulator from query {start_idx}/{}",
+            stream.len()
+        );
+        match cp.regulator_state_json.as_deref() {
+            Some(json) => match serde_json::from_str::<RegulatorState>(json) {
+                Ok(state) => Regulator::import(state).with_cost_cap(COST_CAP),
+                Err(e) => {
+                    eprintln!("[checkpoint] regulator state deserialize failed: {e}; fresh restart");
+                    Regulator::for_user("eval_user").with_cost_cap(COST_CAP)
+                }
+            },
+            None => Regulator::for_user("eval_user").with_cost_cap(COST_CAP),
+        }
+    } else {
+        Regulator::for_user("eval_user").with_cost_cap(COST_CAP)
+    };
+
+    for &(cluster, idx) in &stream[start_idx..] {
         // Per-query reset via export/import roundtrip. Preserves
         // LearnedState + CorrectionPattern (durable); clears
         // CostAccumulator + ScopeTracker + TokenStatsAccumulator +
@@ -453,6 +574,12 @@ fn run_regulator(stream: &[(Cluster, usize)], mode: &str) -> RunMetrics {
                 corrects_last: true,
             });
         }
+
+        // Save checkpoint after every completed query so a mid-run
+        // freeze only costs the CURRENT query's work on resume.
+        cp.regulator = CheckpointArm::snapshot(&m);
+        cp.regulator_state_json = serde_json::to_string(&regulator.export()).ok();
+        save_checkpoint(cp);
     }
     m
 }
@@ -665,12 +792,42 @@ fn main() {
         Some(limit) if limit < stream.len() => stream.into_iter().take(limit).collect(),
         _ => stream,
     };
+
+    // Resume from checkpoint if one exists AND matches the current config.
+    // Any mismatch (different mode, stream length, or judge setting)
+    // discards the old checkpoint — we never silently reuse incompatible
+    // state. NOOS_EVAL_NO_RESUME=1 forces a clean run regardless.
+    let judge_on = env::var("NOOS_JUDGE").as_deref() == Ok("anthropic");
+    let force_fresh = env::var("NOOS_EVAL_NO_RESUME").as_deref() == Ok("1");
+    let mut checkpoint = match (force_fresh, load_checkpoint()) {
+        (true, _) => {
+            clear_checkpoint();
+            Checkpoint { mode: mode.clone(), stream_len: stream.len(), judge_on, ..Default::default() }
+        }
+        (false, Some(cp)) if cp.mode == mode && cp.stream_len == stream.len() && cp.judge_on == judge_on => {
+            eprintln!(
+                "[checkpoint] resuming (mode={mode}, stream_len={}, judge={judge_on})",
+                stream.len()
+            );
+            cp
+        }
+        (false, Some(_)) => {
+            eprintln!("[checkpoint] found but config differs — starting fresh");
+            clear_checkpoint();
+            Checkpoint { mode: mode.clone(), stream_len: stream.len(), judge_on, ..Default::default() }
+        }
+        (false, None) => Checkpoint { mode: mode.clone(), stream_len: stream.len(), judge_on, ..Default::default() },
+    };
+
     print_header(&mode, stream.len());
 
     let t0 = Instant::now();
-    let baseline = run_baseline(&stream, &mode);
-    let regulator = run_regulator(&stream, &mode);
+    let baseline = run_baseline(&stream, &mode, &mut checkpoint);
+    let regulator = run_regulator(&stream, &mode, &mut checkpoint);
     let wallclock_s = t0.elapsed().as_secs_f64();
+
+    // Successful completion — remove checkpoint so next run starts fresh.
+    clear_checkpoint();
 
     println!("Per-arm summary (wallclock {wallclock_s:.1}s):");
     println!(
