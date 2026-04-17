@@ -32,7 +32,7 @@ consult learned corrections before the next generation.
 
 ```toml
 [dependencies]
-noos = "0.1"
+noos = "0.3"
 ```
 
 ```rust
@@ -63,13 +63,20 @@ match regulator.decide() {
         // anchor in the task. Strip, re-prompt, or annotate.
     }
     Decision::CircuitBreak { reason, suggestion } => {
-        // Halt the retry loop; surface `suggestion` to the user.
+        // Halt the retry loop; surface `suggestion` to the user. The
+        // `reason` variant distinguishes CostCapReached /
+        // QualityDeclineNoRecovery / RepeatedToolCallLoop.
     }
     Decision::ProceduralWarning { patterns } => {
         // Read `pattern.example_corrections` into the next prompt so
         // the LLM sees the user's prior pushback before generating.
+        // Or use the 0.2.2 helper:
+        //   let prompt = regulator.inject_corrections(&user_message);
     }
     Decision::LowConfidenceSpans { .. } => { /* reserved for future */ }
+    // `Decision` is `#[non_exhaustive]` since 0.2.1 — future variants
+    // (e.g. a multi-concern aggregator) require a wildcard arm.
+    _ => {}
 }
 ```
 
@@ -79,13 +86,14 @@ calls, per-query vs per-task regulator lifetime): see
 
 ## What this closes that competitors don't
 
-|                             | Log turns | Remember content | Scope drift (pre-delivery) | Cost × quality halt | Pattern extraction from corrections |
-|-----------------------------|:---------:|:----------------:|:--------------------------:|:-------------------:|:-----------------------------------:|
-| Langfuse / Arize / Helicone |     ✓     |        —         |             —              |          —          |                  —                  |
-| Mem0 / Letta / LangChain mem|     —     |        ✓         |             —              |          —          |                  —                  |
-| Portkey / litellm / OpenRouter|   —     |        —         |             —              |   transport only    |                  —                  |
-| Tenacity / backoff          |     —     |        —         |             —              |          —          |                  —                  |
-| **Noos**                    |     —     |    ✓ structural  |           **✓**            |       **✓**         |                 **✓**               |
+|                             | Log turns | Remember content | Scope drift (pre-delivery) | Cost × quality halt | Tool-call loop halt | Pattern extraction from corrections |
+|-----------------------------|:---------:|:----------------:|:--------------------------:|:-------------------:|:-------------------:|:-----------------------------------:|
+| Langfuse / Arize / Helicone |     ✓     |        —         |             —              |          —          |          —          |                  —                  |
+| Mem0 / Letta / LangChain mem|     —     |        ✓         |             —              |          —          |          —          |                  —                  |
+| Portkey / litellm / OpenRouter|   —     |        —         |             —              |   transport only    |          —          |                  —                  |
+| Tenacity / backoff          |     —     |        —         |             —              |          —          |          —          |                  —                  |
+| LangChain / CrewAI / AutoGen|     ✓     |        ✓         |             —              |   max_iterations    |   max_iterations    |                  —                  |
+| **Noos**                    |     —     |    ✓ structural  |           **✓**            |       **✓**         |       **✓**         |                 **✓**               |
 
 Noos is not a logging layer — pair it with Langfuse / Arize / Helicone if
 you want observability on top of the regulatory decisions. The value is
@@ -93,9 +101,9 @@ the real-time decision surface during the loop, not the post-hoc record.
 
 ## Demos
 
-Three flagship demos, each closing one loop competitors cannot. All run
-canned by default (no LLM required); each has `ollama` and `anthropic`
-live modes.
+Four flagship demos, each closing one loop competitors cannot. All run
+canned by default (no LLM required); demos 1–3 have `ollama` and
+`anthropic` live modes.
 
 - [`regulator_scope_drift_demo`](examples/regulator_scope_drift_demo.rs)
   — a refactor response adds logging / error handling / telemetry nobody
@@ -108,12 +116,19 @@ live modes.
   — 3 corrections build a `CorrectionPattern`; state exports → JSON
   round-trips → imports; next-session turn on the same cluster fires
   `ProceduralWarning` pre-generation with stored example corrections
-  attached.
+  attached. (Uses `inject_corrections` helper since 0.2.2.)
+- [`regulator_tool_loop_demo`](examples/regulator_tool_loop_demo.rs) *(0.3.0)*
+  — agent calls `search_orders` 5× in a row with tweaked args, each
+  returning an empty result. Protocol-level successful calls — retry /
+  backoff crates don't flag them; `max_iterations` bounds all iteration.
+  `RepeatedToolCallLoop` fires structurally on same-tool consecutive
+  count.
 
 ```bash
 cargo run --example regulator_scope_drift_demo
 cargo run --example regulator_cost_break_demo
 cargo run --example regulator_correction_memory_demo
+cargo run --example regulator_tool_loop_demo
 ```
 
 ## Eval numbers
@@ -163,11 +178,27 @@ fair cross-arm metric when the regulator cuts retries short —
 real, quality is not. A full publication run needs a real grader —
 the harness accepts `-- anthropic` for Claude-graded runs.
 
-## Status (2026-04-15)
+## Status (2026-04-17, crate `noos 0.3.0` on crates.io)
 
-Path 2 MVP complete: public API stable (`Regulator` / `LLMEvent` /
-`Decision`), three flagship demos, canned-mode eval harness, 422 tests
-passing, zero clippy warnings on demos.
+Path 2 MVP + two feature expansions shipped:
+
+- **0.2.0** rebranded crate name and Rust types from `Nous*` to `Noos*`
+  (crates.io name was taken).
+- **0.2.1** added `#[non_exhaustive]` to `LLMEvent` / `Decision` /
+  `CircuitBreakReason` so future variants don't break downstream
+  exhaustive matches; `#[must_use]` on `Decision`; fixed a silent
+  `LearnedState` export bug where LC `tick` + `gain_mode` were never
+  flushed to the exported snapshot.
+- **0.2.2** Path B — `Regulator::corrections_prelude()` /
+  `inject_corrections(&str) -> String` helpers replace the 15-line
+  hand-threading recipe for `ProceduralWarning`.
+- **0.3.0** Path A — tool-call observation channel. New events
+  `LLMEvent::ToolCall` + `LLMEvent::ToolResult`, new
+  `CircuitBreakReason::RepeatedToolCallLoop`, new per-turn tool-stats
+  accessors, and a fourth flagship demo. Catches the retry-loop failure
+  mode that transport-retry crates and `max_iterations` don't.
+
+442 tests passing, zero clippy warnings, zero rustdoc warnings.
 
 ### Empirically validated
 
@@ -182,8 +213,10 @@ passing, zero clippy warnings on demos.
 
 ### Shipped infrastructure, canned-eval numbers
 
-- `Regulator` + three flagship demos + 50-query eval harness.
-  Live-LLM numbers are pending.
+- `Regulator` + four flagship demos + 50-query eval harness.
+  Live-LLM numbers (Ollama `phi3:mini`, 4h41m wallclock) confirm the
+  canned story: **−80.5 % cost, +433 % quality-per-1k** on the
+  regulator arm.
 
 ### Measured limitations
 

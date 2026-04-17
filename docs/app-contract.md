@@ -248,7 +248,7 @@ To bound expectations:
 - Project-level identity (proven vs aspirational) — see the repo's
   `CLAUDE.md` on GitHub for the honest-scope table.
 
-## 8. Path 2 Regulator contract (Sessions 16-20, 2026-04-15)
+## 8. Path 2 Regulator contract (Sessions 16–20 infra; 0.2.0 → 0.3.0 shipped)
 
 The contract above describes Path 1 (`CognitiveSession`). Path 2
 (`Regulator`, `src/regulator/`) wraps Path 1 and adds an event-driven
@@ -256,14 +256,29 @@ interface for callers that want LLM-operational signals instead of
 text-pattern-derived ones. Semantic differences worth knowing:
 
 - **Input modality** — Path 2 consumes `LLMEvent` (token stream,
-  corrections, cost, quality feedback) instead of raw user text. The
+  corrections, cost, quality feedback, tool calls + results). The
   wrapped `CognitiveSession` still runs, so Path 1 signals continue to
-  update; Path 2 *adds* signals without replacing them.
+  update; Path 2 *adds* signals without replacing them. 0.3.0 added
+  `LLMEvent::ToolCall` + `LLMEvent::ToolResult` for agents that invoke
+  tools.
 - **New decisions** — `Regulator::decide()` returns a `Decision` enum
   with a locked P10 priority order: `CircuitBreak(CostCapReached) >
-  CircuitBreak(QualityDeclineNoRecovery) > ScopeDriftWarn >
+  CircuitBreak(QualityDeclineNoRecovery) >
+  CircuitBreak(RepeatedToolCallLoop) > ScopeDriftWarn >
   ProceduralWarning > Continue`. See `src/regulator/mod.rs`
   `Regulator::decide` doc for the authoritative ordering.
+  `Decision` and `CircuitBreakReason` are `#[non_exhaustive]` (since
+  0.2.1) — downstream exhaustive matches must include a wildcard arm.
+- **Prompt-injection helper (0.2.2)** —
+  `Regulator::corrections_prelude()` and `Regulator::inject_corrections(&str)`
+  lift the `ProceduralWarning` hand-threading recipe into the crate.
+  When `decide()` is `ProceduralWarning`, `inject_corrections` prefixes
+  the prompt with the learned corrections block; otherwise it returns
+  the prompt unchanged.
+- **Tool-call observability (0.3.0)** —
+  `Regulator::tool_total_calls()`, `tool_counts_by_name()`,
+  `tool_total_duration_ms()`, `tool_failure_count()` expose per-turn
+  tool statistics. Counters reset on every `LLMEvent::TurnStart`.
 - **Persistence** — `Regulator::export()` returns a `RegulatorState`
   (defined in `src/regulator/state.rs`) that wraps `LearnedState` plus
   a Path-2-only `correction_patterns: HashMap<String, CorrectionPattern>`
