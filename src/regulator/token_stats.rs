@@ -41,8 +41,28 @@
 //! `ConfidenceSpan` analysis (from [`Decision::LowConfidenceSpans`]) is
 //! Session 18+ work — it needs span metadata this MVP doesn't track.
 //!
+//! ## Gating (P10)
+//!
+//! This module does NOT produce a [`Decision`] variant in 0.3.0. The
+//! scalar it exposes via [`Regulator::confidence`] is an observability
+//! readout — callers can use it to build their own heuristics or to
+//! feed external logging.
+//!
+//! - **Suppresses**: nothing (pure observability).
+//! - **Suppressed by**: nothing.
+//! - **Inactive when**: no tokens have been observed this turn AND no
+//!   [`TurnComplete`](super::LLMEvent::TurnComplete) has landed yet.
+//!   In that state [`Regulator::confidence`] returns
+//!   [`NEUTRAL_CONFIDENCE`] (0.5) rather than claiming false certainty.
+//!
+//! The reserved [`Decision::LowConfidenceSpans`] variant will consume
+//! the same rolling-window data once span-level tracking lands; its
+//! own gating section will be added with that change.
+//!
 //! [`CognitiveSession`]: crate::session::CognitiveSession
+//! [`Decision`]: super::Decision
 //! [`Decision::LowConfidenceSpans`]: super::Decision::LowConfidenceSpans
+//! [`Regulator::confidence`]: super::Regulator::confidence
 
 use std::collections::VecDeque;
 

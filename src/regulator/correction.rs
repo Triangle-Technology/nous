@@ -33,6 +33,29 @@
 //! means strategy learning + correction patterns refer to the same
 //! notion of "topic"; there are never two disagreeing cluster IDs for
 //! the same turn.
+//!
+//! ## Gating (P10)
+//!
+//! This module produces
+//! [`Decision::ProceduralWarning`](super::Decision::ProceduralWarning)
+//! via [`Regulator::decide`](super::Regulator::decide).
+//!
+//! - **Suppresses**:
+//!   [`Decision::Continue`](super::Decision::Continue) only.
+//!   ProceduralWarning is an advisory signal that fires *before*
+//!   generation — apps can read the `example_corrections` and adjust
+//!   the upcoming prompt.
+//! - **Suppressed by**: every
+//!   [`Decision::CircuitBreak`](super::Decision::CircuitBreak) variant
+//!   AND [`Decision::ScopeDriftWarn`](super::Decision::ScopeDriftWarn).
+//!   Procedural patterns are historical context; a live cost / quality
+//!   / tool-loop / scope problem takes precedence.
+//! - **Inactive when**:
+//!   [`Regulator.current_topic_cluster`](super::Regulator) is empty
+//!   (no [`LLMEvent::TurnStart`](super::LLMEvent::TurnStart) yet, or
+//!   the user message had no extractable top-2 topics), OR the
+//!   current cluster has fewer than
+//!   [`MIN_CORRECTIONS_FOR_PATTERN`] recorded corrections.
 
 use std::collections::HashMap;
 

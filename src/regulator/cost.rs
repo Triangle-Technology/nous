@@ -31,6 +31,30 @@
 //!   (a runaway 100k-token reply) cap the per-turn depletion at 1.0
 //!   instead of exploding the scale.
 //!
+//! ## Gating (P10)
+//!
+//! This module produces the top-priority
+//! [`Decision::CircuitBreak`](super::Decision::CircuitBreak) variants —
+//! [`CircuitBreakReason::CostCapReached`](super::CircuitBreakReason::CostCapReached)
+//! and
+//! [`CircuitBreakReason::QualityDeclineNoRecovery`](super::CircuitBreakReason::QualityDeclineNoRecovery).
+//!
+//! - **Suppresses**:
+//!   [`CircuitBreakReason::RepeatedToolCallLoop`](super::CircuitBreakReason::RepeatedToolCallLoop),
+//!   [`Decision::ScopeDriftWarn`](super::Decision::ScopeDriftWarn),
+//!   [`Decision::ProceduralWarning`](super::Decision::ProceduralWarning),
+//!   [`Decision::Continue`](super::Decision::Continue). The two cost
+//!   variants are themselves ordered `CostCapReached >
+//!   QualityDeclineNoRecovery` inside
+//!   [`Regulator::decide`](super::Regulator::decide).
+//! - **Suppressed by**: nothing — cost-driven circuit breaks are the
+//!   highest-priority signals the regulator emits.
+//! - **Inactive when**: the cumulative token / wallclock counters have
+//!   not crossed the cap, OR the rolling quality history is still too
+//!   shallow to evaluate [`QUALITY_DECLINE_WINDOW`] /
+//!   [`POOR_QUALITY_MEAN`]. Both predicates AND the quality guard —
+//!   a cap reached with still-high quality does not fire.
+//!
 //! ## CircuitBreak predicates
 //!
 //! The accumulator exposes three queries the Regulator uses to decide

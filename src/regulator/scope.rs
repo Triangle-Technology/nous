@@ -12,6 +12,30 @@
 //! [`CognitiveSession`](crate::session::CognitiveSession); P9b is
 //! satisfied by construction.
 //!
+//! ## Gating (P10)
+//!
+//! This module produces the [`Decision::ScopeDriftWarn`] signal via
+//! [`Regulator::decide`].
+//!
+//! - **Suppresses**: [`Decision::ProceduralWarning`], [`Decision::Continue`].
+//! - **Suppressed by**: every [`Decision::CircuitBreak`] variant
+//!   ([`CircuitBreakReason::CostCapReached`],
+//!   [`CircuitBreakReason::QualityDeclineNoRecovery`],
+//!   [`CircuitBreakReason::RepeatedToolCallLoop`]) — urgent stop signals
+//!   dominate semantic warnings.
+//! - **Inactive when**: [`ScopeTracker::drift_score`] returns `None`
+//!   (either the task or the response keyword bag is empty — no
+//!   baseline to measure drift against).
+//!
+//! [`Decision::ScopeDriftWarn`]: super::Decision::ScopeDriftWarn
+//! [`Decision::ProceduralWarning`]: super::Decision::ProceduralWarning
+//! [`Decision::Continue`]: super::Decision::Continue
+//! [`Decision::CircuitBreak`]: super::Decision::CircuitBreak
+//! [`CircuitBreakReason::CostCapReached`]: super::CircuitBreakReason::CostCapReached
+//! [`CircuitBreakReason::QualityDeclineNoRecovery`]: super::CircuitBreakReason::QualityDeclineNoRecovery
+//! [`CircuitBreakReason::RepeatedToolCallLoop`]: super::CircuitBreakReason::RepeatedToolCallLoop
+//! [`Regulator::decide`]: super::Regulator::decide
+//!
 //! ## Drift metric (MVP)
 //!
 //! ```text

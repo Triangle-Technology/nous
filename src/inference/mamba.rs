@@ -522,13 +522,16 @@ impl CognitiveMambaModel {
         })
     }
 
-    /// Set bottleneck steering (Tầng 4).
-    /// Scales mixer output at the specified layer to compensate routing bottleneck.
+    /// Mutable: install bottleneck steering (Tầng 4). Scales mixer
+    /// output at the specified layer to compensate routing bottleneck.
+    /// Requires mutation because the steering struct becomes owned
+    /// model state consulted on every subsequent forward pass.
     pub fn set_bottleneck(&mut self, steering: BottleneckSteering) {
         self.bottleneck = Some(steering);
     }
 
-    /// Remove bottleneck steering (return to baseline).
+    /// Mutable: drop the active bottleneck steering so future forward
+    /// passes run at the uncalibrated baseline.
     pub fn clear_bottleneck(&mut self) {
         self.bottleneck = None;
     }
@@ -887,12 +890,15 @@ impl CognitiveMambaWithGate {
         })
     }
 
-    /// Set bottleneck steering (Tầng 4).
+    /// Mutable: install bottleneck steering (Tầng 4) on the gated
+    /// model variant. See [`CognitiveMambaModel::set_bottleneck`] for
+    /// rationale — the two variants ship the same hook for symmetry.
     pub fn set_bottleneck(&mut self, steering: BottleneckSteering) {
         self.bottleneck = Some(steering);
     }
 
-    /// Remove bottleneck steering.
+    /// Mutable: drop the active bottleneck steering on the gated
+    /// model variant.
     pub fn clear_bottleneck(&mut self) {
         self.bottleneck = None;
     }

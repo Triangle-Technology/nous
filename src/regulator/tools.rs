@@ -20,6 +20,38 @@
 //! hooks (accessible via [`ToolStatsAccumulator::total_calls`] and
 //! related getters); they do not influence loop detection in 0.3.0.
 //!
+//! ## Gating (P10)
+//!
+//! This module produces the
+//! [`CircuitBreakReason::RepeatedToolCallLoop`] variant of
+//! [`Decision::CircuitBreak`] via [`Regulator::decide`].
+//!
+//! - **Suppresses**:
+//!   [`Decision::ScopeDriftWarn`],
+//!   [`Decision::ProceduralWarning`],
+//!   [`Decision::Continue`]. Tool-loop halt is a circuit break — it
+//!   dominates every advisory below it.
+//! - **Suppressed by**:
+//!   [`CircuitBreakReason::CostCapReached`] and
+//!   [`CircuitBreakReason::QualityDeclineNoRecovery`]. The two
+//!   cost / quality circuit breaks are considered more urgent in the
+//!   priority chain — if the budget has already been blown or quality
+//!   is collapsing, halting on tool pattern alone would mask the
+//!   bigger problem.
+//! - **Inactive when**: fewer than [`TOOL_LOOP_THRESHOLD`] consecutive
+//!   [`LLMEvent::ToolCall`] events have landed since the last
+//!   [`LLMEvent::TurnStart`], OR the trailing run includes at least
+//!   two distinct tool names (interleaving breaks a loop).
+//!
+//! [`CircuitBreakReason::RepeatedToolCallLoop`]: super::CircuitBreakReason::RepeatedToolCallLoop
+//! [`CircuitBreakReason::CostCapReached`]: super::CircuitBreakReason::CostCapReached
+//! [`CircuitBreakReason::QualityDeclineNoRecovery`]: super::CircuitBreakReason::QualityDeclineNoRecovery
+//! [`Decision::CircuitBreak`]: super::Decision::CircuitBreak
+//! [`Decision::ScopeDriftWarn`]: super::Decision::ScopeDriftWarn
+//! [`Decision::ProceduralWarning`]: super::Decision::ProceduralWarning
+//! [`Decision::Continue`]: super::Decision::Continue
+//! [`Regulator::decide`]: super::Regulator::decide
+//! [`LLMEvent::ToolCall`]: super::LLMEvent::ToolCall
 //! [`LLMEvent::TurnStart`]: super::LLMEvent::TurnStart
 
 use std::collections::HashMap;
@@ -83,13 +115,19 @@ impl ToolStatsAccumulator {
         Self::default()
     }
 
-    /// Clear per-turn history. Called on `LLMEvent::TurnStart`.
+    /// Mutable: clear per-turn history. Called by the regulator on
+    /// every `LLMEvent::TurnStart` so tool-loop detection only fires
+    /// within a single turn (cross-turn accumulation would conflate
+    /// "stuck in a loop this turn" with "legitimately touched this
+    /// tool in several adjacent turns").
     pub fn reset_turn(&mut self) {
         self.calls.clear();
         self.results.clear();
     }
 
-    /// Record a tool call.
+    /// Mutable: append a tool-call record to the per-turn history.
+    /// Requires mutation because the history is accumulated state
+    /// feeding [`Self::detected_loop`] and the observability getters.
     pub fn record_call(&mut self, tool_name: String, args_json: Option<String>) {
         let turn_local_index = self.calls.len();
         self.calls.push(ToolCallRecord {
@@ -99,7 +137,10 @@ impl ToolStatsAccumulator {
         });
     }
 
-    /// Record a tool result.
+    /// Mutable: append a tool-result record to the per-turn history.
+    /// Requires mutation because the history drives the observability
+    /// accessors ([`Self::total_duration_ms`], [`Self::failure_count`]).
+    /// Does not feed loop detection in 0.3.0.
     pub fn record_result(
         &mut self,
         tool_name: String,

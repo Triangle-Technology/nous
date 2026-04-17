@@ -40,6 +40,36 @@ Three levels of grounding required:
 
 If there's no neuroscience justification, the code doesn't belong in Noos. Move it to the application layer.
 
+### Regulator exemption (2026-04-17)
+
+One architectural area is explicitly scoped out of P1: the external
+regulatory layer at `src/regulator/*` (added in Sessions 16–25, 2026-04).
+
+The regulator sits between an LLM agent's retry loop and the LLM itself.
+Its substrate is LLM-operational events (tokens, logprobs, cost,
+user corrections, tool calls) — not biological. The 2026-04-15 pivot
+(`memory/feedback_llm_operational_framing_2026_04_15.md`) landed the
+rule: **ground regulator design in LLM-observable events, not
+biological metaphors.** Brain citations would be back-projection, not
+mechanism.
+
+Therefore, for `src/regulator/*`:
+
+- Module `//!` docs describe LLM-operational rationale (what failure
+  mode the module catches, what signal it reads) instead of brain
+  analog + mechanism paper.
+- Constants cite operational research or empirical tuning, not
+  neuroscience (e.g., `TOOL_LOOP_THRESHOLD = 5` cites agentic-retrieval
+  loop research).
+- The `/// Scope note (P1 / P9b):` preamble in each regulator module
+  makes the exemption explicit. P1 remains applicable to the wrapped
+  [`CognitiveSession`](crate::session::CognitiveSession) underneath;
+  P9b applies to both layers.
+
+P1 remains in full force for `src/cognition/*`, `src/session.rs`,
+`src/inference/*`, `src/memory/*`, and `src/types/*` — every module
+that participates in the Path 1 cognitive pipeline.
+
 ### Mechanism vs Metaphor test
 
 Every brain analog must pass this test. "Region X handles Y" is a metaphor. "Region X performs mechanism Z through substrate W, gated by condition G" is precise. **Only the precise version tells you what code to write.**

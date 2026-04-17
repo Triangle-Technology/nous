@@ -247,6 +247,11 @@ impl CognitiveSession {
     /// > 1.0 = attend to current input. < 1.0 = preserve history.
     ///
     /// Call after each generate_next_cognitive() to create per-token feedback.
+    ///
+    /// Mutable: updates `model.belief.affect.arousal` and
+    /// `model.sensory_pe` via per-token EMA blend. Requires mutation
+    /// because arousal and PE accumulate across tokens in the
+    /// thalamocortical loop (CR4 invariants apply — clamped to `[0, 1]`).
     pub fn inject_gate_feedback(&mut self, gate_alpha: f64, gate_delta_gain: f64) {
         // Gate alpha → arousal: high alpha = gate actively modulating = salient input.
         // EMA blend so arousal accumulates across tokens, not jumps.

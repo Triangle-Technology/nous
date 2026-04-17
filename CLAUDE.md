@@ -274,13 +274,14 @@ src/
 │   ├── intervention.rs            # Brainstem → cortex: cognitive state → sampling override (Tầng 1)
 │   └── delta_modulation.rs        # LC → cortex: cognitive state → SSM delta scaling (Tầng 2, compensatory)
 │
-└── regulator/                     # Path 2 external regulatory layer (Sessions 16-20, 2026-04-15)
-    ├── mod.rs                     # Regulator + LLMEvent + Decision + CircuitBreakReason + ConfidenceSpan + CorrectionPattern (#[non_exhaustive], extended with example_corrections Session 20); public API evolves 16→20
+└── regulator/                     # Path 2 external regulatory layer (Sessions 16-20 landed infra; 0.2.0-0.3.0 published 2026-04-16)
+    ├── mod.rs                     # Regulator + LLMEvent (8 variants; Session-24 Token/Cost/UserCorrection + 0.3.0 ToolCall/ToolResult) + Decision (5 variants, #[non_exhaustive] + #[must_use] since 0.2.1) + CircuitBreakReason (4 variants, #[non_exhaustive]: CostCapReached/QualityDeclineNoRecovery/RepeatedFailurePattern/RepeatedToolCallLoop) + ConfidenceSpan + CorrectionPattern. Includes Path B helpers (corrections_prelude/inject_corrections since 0.2.2) and Path A tool-stats accessors (tool_total_calls/tool_counts_by_name/tool_total_duration_ms/tool_failure_count since 0.3.0)
     ├── correction.rs              # CorrectionStore + opaque pattern extraction (pattern_name=`corrections_on_{cluster}`, no English regex — P9b-compliant). 3 constants (MIN_CORRECTIONS_FOR_PATTERN=3, MAX_EXAMPLE_CORRECTIONS=3, MAX_CORRECTIONS_PER_CLUSTER=20). Session 20.
     ├── cost.rs                    # CostAccumulator (cumulative token/wallclock + rolling quality history) + normalize_cost (Cost → [0,1] for session.track_cost) + 8 constants. Session 19.
     ├── scope.rs                   # ScopeTracker (keyword-overlap drift reusing detector::extract_topics + to_topic_set + count_topic_overlap per P3) + DRIFT_WARN_THRESHOLD (Session 18)
     ├── state.rs                   # RegulatorState persistence envelope (split from mod.rs in Session 20). Wraps LearnedState + correction_patterns with #[serde(default)] for pre-Session-20 backcompat.
-    └── token_stats.rs             # TokenStatsAccumulator (rolling logprob window + mean-NLL → confidence) + structural_confidence fallback (Session 17, R2 hybrid)
+    ├── token_stats.rs             # TokenStatsAccumulator (rolling logprob window + mean-NLL → confidence) + structural_confidence fallback (Session 17, R2 hybrid)
+    └── tools.rs                   # ToolStatsAccumulator (per-turn tool-call + tool-result history + consecutive-same-tool loop detector). 0.3.0 Path A. TOOL_LOOP_THRESHOLD=5 drives CircuitBreak(RepeatedToolCallLoop). Reset per TurnStart.
 ```
 
 **Audit 2026-04-10 (non-cortical cleanup, pass 1)**:
@@ -368,7 +369,7 @@ inference (Layer 7 — above cognition, integrates model + cognitive state)
 ├── math/softmax (softmax_f32 — P3 single source)
 └── types/intervention (CognitiveState, SamplingOverride, DeltaModulation, ForwardResult)
 
-regulator (Path 2 — external regulatory layer, Sessions 16-20 shipped)
+regulator (Path 2 — external regulatory layer, shipped as `noos` 0.2.0 → 0.3.0)
 ├── session (CognitiveSession — wrapped Path 1 pipeline)
 │   └── [all Path 1 dependencies inherited]
 ├── types/world (LearnedState — for RegulatorState.learned)
@@ -382,12 +383,14 @@ regulator (Path 2 — external regulatory layer, Sessions 16-20 shipped)
 ├── regulator/correction (CorrectionStore — per-(user, cluster) record of
 │   corrections + opaque structural pattern extraction; drives
 │   ProceduralWarning in decide())
+├── regulator/tools (ToolStatsAccumulator — per-turn tool-call + tool-result
+│   history + consecutive-same-tool loop detector; drives
+│   CircuitBreak(RepeatedToolCallLoop) in decide(); 0.3.0 Path A)
 ├── regulator/state (RegulatorState — persistence envelope; wraps
 │   LearnedState + correction_patterns with #[serde(default)] backcompat)
 └── cognition/detector (extract_topics + to_topic_set + count_topic_overlap
     + build_topic_cluster — P3 shared utilities; build_topic_cluster also
     consumed by world_model for LearnedState.response_strategies keying)
-   # Path 2 infrastructure phase COMPLETE. Sessions 21-23 = 3 flagship demos.
 ```
 
 ## Constants
@@ -507,6 +510,12 @@ cargo run --example task_eval_real_llm_regulator -- ollama  # Live via Ollama (p
 cargo run --example task_eval_real_llm_regulator -- anthropic # Live via Anthropic (requires ANTHROPIC_API_KEY)
 ```
 
+## Recent sessions
+
+- **Session 28 Ship 0.1.3 → 0.3.0** (2026-04-16): crate name rename `nous` → `nous-regulator` (crates.io name collision) → `noos` (final); GitHub repo `Triangle-Technology/nous` → `/noos` with auto-redirect preserved. Rust-type rename `NousError/NousResult/NousTokenizer` → `Noos*` fenced as 0.2.0 breaking. **0.2.1** QA pass: `#[non_exhaustive]` on `LLMEvent`/`Decision`/`CircuitBreakReason` + `#[must_use]` on `Decision`; fixed silent data-loss bug in `CognitiveSession::export_learned` (LC `tick` + `gain_mode` mutated on every turn but never flushed to exported `LearnedState` because `sync_to_learned` was defined but never called — roundtrip test was `0 == 0`, masking loss; test strengthened with `assert!(learned.tick > 0)`). **0.2.2** Path B: `Regulator::corrections_prelude()` + `inject_corrections(&str) -> String` helpers replacing the 15-line ProceduralWarning hand-threading recipe. **0.3.0** Path A: `LLMEvent::ToolCall` + `LLMEvent::ToolResult`, new `CircuitBreakReason::RepeatedToolCallLoop`, new `src/regulator/tools.rs` (`ToolStatsAccumulator`, `TOOL_LOOP_THRESHOLD=5`), 4 observability accessors, fourth flagship demo `examples/regulator_tool_loop_demo.rs`. P10 priority now `CircuitBreak(CostCapReached) > CircuitBreak(QualityDeclineNoRecovery) > CircuitBreak(RepeatedToolCallLoop) > ScopeDriftWarn > ProceduralWarning > Continue`. 442 tests, 0 clippy warnings, 0 rustdoc warnings. Published 0.1.3 / 0.2.0 / 0.2.1 / 0.2.2 / 0.3.0.
+
+- **Session 29 Principle-compliance audit + cleanup** (2026-04-17, doc-only): user-requested principles.md compliance sweep on Session 28 changes. Findings: (1) P7 real violation — CLAUDE.md not updated for any of 0.1.3–0.3.0 arch changes (fixed this session). (2) P1 exemption ambiguity — `src/regulator/*` doesn't cite neuroscience because regulator is LLM-operational framing per `feedback_llm_operational_framing_2026_04_15.md`, but `principles.md` didn't document the exemption (fixed: added §P1 "Regulator exemption (2026-04-17)" subsection). (3) P2 `/// Mutable:` prefix inconsistency across codebase — swept 7 methods missing prefix (`tools.rs::{reset_turn, record_call, record_result}`, `session.rs::inject_gate_feedback`, `mamba.rs::{set_bottleneck, clear_bottleneck}` × 2 variants). (4) P10 `## Gating` section missing from regulator modules — added to all 5 (`scope.rs`, `cost.rs`, `correction.rs`, `token_stats.rs`, `tools.rs`) with Suppresses/Suppressed by/Inactive when triplet citing the priority chain. No code-behaviour changes; doc-only sweep. Per user rule, NO publish — new-version publishes now require an explicit achievement criterion from the user.
+
 ## Session-End Checklist
 
 Before ending any session that modified code or docs:
@@ -514,3 +523,4 @@ Before ending any session that modified code or docs:
 2. Update this file (`CLAUDE.md`) if files added/removed or architecture changed
 3. Update `docs/brain-map.md` if constants or modules changed
 4. Update memory (`project_nous_status.md`) with what was done and what's next
+5. **Do NOT `cargo publish` without an explicit achievement gate from user** (rule set 2026-04-17)
