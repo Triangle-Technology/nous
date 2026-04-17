@@ -15,9 +15,16 @@ repository = "https://github.com/Triangle-Technology/noos"
 crate-type = ["cdylib"]
 
 [dependencies]
-# napi-rs 3.x has better Windows support (delay-loads libnode at
-# runtime, no `libnode.dll` needed at link time). napi-build is
-# dropped for this reason — the build.rs is empty.
+# napi-rs 3.x is preferred because it delay-loads libnode at runtime
+# on Windows-MSVC. This crate has no local `build.rs` — `napi-build
+# 2.3.1` is still pulled as a transitive build-dep of `napi` and runs
+# cleanly on Linux / macOS / Windows-MSVC. Only Windows-GNU local
+# builds panic (libnode.dll not on the GNU search path); CI uses
+# ubuntu-latest so the published path is unblocked.
+#
+# Feature `napi6` exports `BigInt` (gated by `#[cfg(feature =
+# "napi6")]` in bindgen_runtime/js_values.rs:43). `napi4` was
+# insufficient — ToolResult.duration_ms uses BigInt for u64 crossing.
 napi = { version = "3", default-features = false, features = ["napi6"] }
 napi-derive = "3"
 serde_json = "1"
