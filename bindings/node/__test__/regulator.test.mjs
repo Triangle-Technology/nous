@@ -9,7 +9,7 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
 
-import { Regulator, LLMEvent } from '../index.js'
+import { Regulator, LLMEvent, llmEventsFromOtelSpanJson } from '../index.js'
 
 test('empty regulator returns continue', () => {
   const r = Regulator.forUser('alice')
@@ -193,16 +193,16 @@ test('OTel span JSON → LLMEvent array', () => {
     start_time_unix_nano: 1_000_000_000,
     end_time_unix_nano: 1_500_000_000,
   }
-  const events = LLMEvent.fromOtelSpanJson(JSON.stringify(span))
+  const events = llmEventsFromOtelSpanJson(JSON.stringify(span))
   assert.equal(events.length, 3)
   const kinds = events.map((e) => e.kind)
   assert.deepEqual(kinds, ['turn_start', 'turn_complete', 'cost'])
 })
 
 test('OTel empty span → empty array', () => {
-  assert.deepEqual(LLMEvent.fromOtelSpanJson('{}'), [])
+  assert.deepEqual(llmEventsFromOtelSpanJson('{}'), [])
 })
 
 test('OTel malformed JSON throws', () => {
-  assert.throws(() => LLMEvent.fromOtelSpanJson('not json'))
+  assert.throws(() => llmEventsFromOtelSpanJson('not json'))
 })

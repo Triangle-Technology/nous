@@ -63,7 +63,7 @@ switch (decision.kind) {
 | Class | Purpose |
 |-------|---------|
 | `Regulator` | Main API. `forUser(id)`, `withCostCap(n)`, `withImplicitCorrectionWindowSecs(s)`, `onEvent(e)`, `decide()`, `exportJson()`, `fromJson(s)` + accessors. |
-| `LLMEvent` | Event factories. `turnStart`, `token`, `turnComplete`, `cost`, `qualityFeedback`, `userCorrection`, `toolCall`, `toolResult`, `fromOtelSpanJson`. |
+| `LLMEvent` | Event factories. `turnStart`, `token`, `turnComplete`, `cost`, `qualityFeedback`, `userCorrection`, `toolCall`, `toolResult`. See also freestanding `llmEventsFromOtelSpanJson(json)`. |
 | `Decision` | Output of `decide()`. `.kind` + variant-specific getters returning `T \| null`. |
 | `CircuitBreakReason` | Nested on `Decision.reason` when `kind === 'circuit_break'`. |
 | `CorrectionPattern` | Items of `Decision.patterns` when `kind === 'procedural_warning'`. |
@@ -123,11 +123,11 @@ conventions, feed spans to Noos without wiring a separate event bus:
 
 ```typescript
 import { readFile } from 'node:fs/promises'
-import { Regulator, LLMEvent } from 'noos-regulator'
+import { Regulator, llmEventsFromOtelSpanJson } from 'noos-regulator'
 
 const spanJson = await readFile('span.json', 'utf-8')
 const r = Regulator.forUser('alice')
-for (const event of LLMEvent.fromOtelSpanJson(spanJson)) {
+for (const event of llmEventsFromOtelSpanJson(spanJson)) {
   r.onEvent(event)
 }
 const d = r.decide()

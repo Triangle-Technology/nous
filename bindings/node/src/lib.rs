@@ -181,20 +181,6 @@ impl LLMEvent {
         })
     }
 
-    /// Parse an OpenTelemetry GenAI span (JSON string) into a list of
-    /// `LLMEvent`s ready to feed `Regulator.onEvent`. Returns an empty
-    /// array when the span has no recognized `gen_ai.*` signals.
-    /// Throws on malformed JSON.
-    #[napi]
-    pub fn from_otel_span_json(span_json: String) -> Result<Vec<LLMEvent>> {
-        let value: serde_json::Value = serde_json::from_str(&span_json)
-            .map_err(|e| Error::new(Status::InvalidArg, format!("OTel span JSON parse failed: {e}")))?;
-        Ok(rust_otel::events_from_span(&value)
-            .into_iter()
-            .map(|inner| Self { inner })
-            .collect())
-    }
-
     /// Variant name: `turn_start`, `token`, `turn_complete`, `cost`,
     /// `quality_feedback`, `user_correction`, `tool_call`,
     /// `tool_result`, or `unknown` (future variants).
@@ -212,6 +198,29 @@ impl LLMEvent {
             _ => "unknown",
         }
     }
+}
+
+/// Parse an OpenTelemetry GenAI span (JSON string) into a list of
+/// `LLMEvent`s ready to feed `Regulator.onEvent`. Returns an empty
+/// array when the span has no recognized `gen_ai.*` signals.
+/// Throws on malformed JSON.
+///
+/// Exposed as a freestanding function (not a `LLMEvent` static method)
+/// because napi-rs 3.x static methods returning `Vec<Self>` break class
+/// registration — the Python binding's `LLMEvent.from_otel_span_json`
+/// shape isn't portable to napi-rs. Usage:
+/// ```js
+/// import { llmEventsFromOtelSpanJson } from 'noos-regulator';
+/// for (const e of llmEventsFromOtelSpanJson(spanJson)) regulator.onEvent(e);
+/// ```
+#[napi]
+pub fn llm_events_from_otel_span_json(span_json: String) -> Result<Vec<LLMEvent>> {
+    let value: serde_json::Value = serde_json::from_str(&span_json)
+        .map_err(|e| Error::new(Status::InvalidArg, format!("OTel span JSON parse failed: {e}")))?;
+    Ok(rust_otel::events_from_span(&value)
+        .into_iter()
+        .map(|inner| LLMEvent { inner })
+        .collect())
 }
 
 // ── Decision ──────────────────────────────────────────────────────────
