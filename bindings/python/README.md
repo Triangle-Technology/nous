@@ -9,6 +9,13 @@ The Rust core is unchanged — this package ships a native extension
 (`noos_regulator.abi3.*.so / .pyd`) built from the same crate published
 on crates.io.
 
+## Status
+
+**0.1.0** — code complete + CI validated on ubuntu-latest. Publish
+workflow (`.github/workflows/publish.yml`) builds and publishes
+abi3-py39 wheels for Linux / macOS / Windows on every `v*` tag.
+Requires `PYPI_API_TOKEN` repo secret.
+
 ## Install
 
 ```bash

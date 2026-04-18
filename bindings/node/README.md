@@ -10,9 +10,10 @@ auto-generated from the Rust source at build time.
 
 ## Status
 
-**0.1.0-pre** — bindings code complete, pending CI binary builds for
-publication to npm. Build from source instructions below cover
-Linux / macOS / Windows-MSVC today.
+**0.1.0** — code complete + CI validated on ubuntu-latest. Publish
+workflow (`.github/workflows/publish.yml`) builds and publishes the
+5 platform binaries (windows-msvc, macos x64 + arm64, linux x64 + arm64)
+on every `v*` tag. Requires `NPM_TOKEN` repo secret.
 
 ## Install (once published)
 
