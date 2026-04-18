@@ -775,6 +775,21 @@ impl Regulator {
     /// explicit call point. Snapshots are cheap (adds up individual
     /// accessor calls); safe to sample every turn or every N turns.
     ///
+    /// **CAUTION — common misuse**: a monitoring loop that polls
+    /// `metrics_snapshot()` alone will NOT see `CircuitBreak`,
+    /// `ScopeDriftWarn`, or `ProceduralWarning` events. Those require
+    /// an explicit [`Self::decide`] call. Anti-pattern:
+    /// ```ignore
+    /// // WRONG — silently misses every decision the regulator makes
+    /// loop {
+    ///     let snapshot = r.metrics_snapshot();
+    ///     send_to_prometheus(snapshot);  // decisions never emitted
+    /// }
+    /// ```
+    /// Correct pattern: call `decide()` per turn, alert on the
+    /// `Decision` variant; sample `metrics_snapshot()` independently
+    /// for time-series metrics.
+    ///
     /// Metric names are prefixed with `noos.` so they don't collide
     /// with your app's own namespace in a shared metrics system.
     pub fn metrics_snapshot(&self) -> std::collections::HashMap<String, f64> {

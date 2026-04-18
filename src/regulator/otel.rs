@@ -177,6 +177,16 @@ pub fn events_from_span(span: &Value) -> Vec<LLMEvent> {
         if let Some(name) = tool_name.as_ref() {
             // Call side: if arguments are present (even if empty
             // string), this event represents a call.
+            //
+            // `gen_ai.tool.arguments` handling by Value variant:
+            // - `String(s)` → forwarded verbatim as the serialized args.
+            // - `Null` → treated as "call with no arguments", `args_json = None`.
+            // - Anything else (object / array / number / bool) → serialized
+            //   via `Value::to_string()`, which produces valid JSON for
+            //   those variants (e.g. `{"id":42}`, `[1,2]`, `42`, `true`).
+            //   Downstream callers that expect pre-stringified JSON
+            //   should emit `String(...)` explicitly; non-string inputs
+            //   are accepted forgivingly rather than dropped.
             if let Some(args) = tool_attrs.get("gen_ai.tool.arguments") {
                 let args_json = match args {
                     Value::String(s) => Some(s.clone()),

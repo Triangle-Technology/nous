@@ -311,6 +311,20 @@ impl Default for CostAccumulator {
 /// [`CognitiveSession::track_cost`](crate::session::CognitiveSession::track_cost).
 ///
 /// See the module docs for the weighted-blend formula and rationale.
+///
+/// ## Clamp behaviour on long-running sessions
+///
+/// Both `tokens_out` and `wallclock_ms` are `u32`. The weighted blend
+/// itself clamps each component at `1.0`, so anything past
+/// `TYPICAL_TURN_*` contributes nothing extra. The u32 ceiling kicks
+/// in only if a single turn somehow accumulates more than `u32::MAX`
+/// ms of wallclock (~49.7 days) or 4 billion tokens — both of which
+/// should be interpreted as infrastructure failure rather than a
+/// legitimate cost signal. The upstream OTel adapter
+/// ([`crate::regulator::otel::events_from_span`]) saturates long
+/// spans to `u32::MAX` rather than wrapping, so clock-skew or zombie
+/// spans can't flip the sign. Apps running for weeks should feed
+/// costs per turn, not accumulated.
 pub fn normalize_cost(tokens_out: u32, wallclock_ms: u32) -> f64 {
     let tok_component =
         (f64::from(tokens_out) / f64::from(TYPICAL_TURN_TOKENS_OUT)).clamp(0.0, 1.0);
