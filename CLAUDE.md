@@ -558,5 +558,5 @@ Before ending any session that modified code or docs:
 1. `cargo test` + `cargo clippy` — must pass, 0 warnings
 2. Update this file (`CLAUDE.md`) if files added/removed or architecture changed
 3. Update `docs/brain-map.md` if constants or modules changed
-4. Update memory (`project_nous_status.md`) with what was done and what's next
-5. **Do NOT `cargo publish` without an explicit achievement gate from user** (rule set 2026-04-17)
+4. Update memory (`project_nous_status.md` or the latest session memo) with what was done and what's next
+5. **Do NOT `cargo publish` / `maturin publish` / `npm publish` unless the session cleared a genuine breakthrough** (rule refined 2026-04-18, superseding the 2026-04-17 "explicit achievement gate" rule). Incremental doc/polish work stays local until the next real feature landing. Doc-only patch releases (0.4.1 style) are specifically excluded from this — they ship only when paired with a feature, not as their own trigger.
