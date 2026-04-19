@@ -5,8 +5,8 @@ name: Publish bindings
 # runners, then publishes to PyPI + npm using tokens stored as repo secrets.
 #
 # Required repo secrets (Settings → Secrets and variables → Actions):
-#   PYPI_API_TOKEN — https://pypi.org/manage/account/token/ (scope: project `noos-regulator`)
-#   NPM_TOKEN      — `npm token create` after `npm login` (automation type)
+#   PYPI_API_TOKEN — https://pypi.org/manage/account/token/ (scope: all packages for first publish of `noos`, can narrow after)
+#   NPM_TOKEN      — Granular access token with "All packages" read+write + 2FA bypass (for first publish of `@triangle-technology/noos`)
 #
 # Manual dispatch: Actions tab → "Publish bindings" → Run workflow. Checkboxes
 # let you skip Python or Node independently.
@@ -106,8 +106,8 @@ jobs:
 
   # ────────────────────────────────────────────────────────────────
   # Node: build one native addon per target triple, publish via
-  # napi-rs's split-package scheme (main `noos-regulator` package +
-  # one `noos-regulator-<target>` subpackage per triple).
+  # napi-rs's split-package scheme (main `@triangle-technology/noos`
+  # package + one `@triangle-technology/noos-<target>` subpackage per triple).
   # ────────────────────────────────────────────────────────────────
 
   node-build:

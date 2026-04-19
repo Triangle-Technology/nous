@@ -1,5 +1,5 @@
 {
-  "name": "noos-regulator",
+  "name": "@triangle-technology/noos",
   "version": "0.1.0",
   "description": "Reliability layer for LLM agents: scope drift, cost circuit breaks, procedural correction memory, tool-call loop detection as event-driven decisions.",
   "main": "index.js",
@@ -31,7 +31,7 @@
     "npm"
   ],
   "napi": {
-    "binaryName": "noos-regulator",
+    "binaryName": "noos",
     "targets": [
       "x86_64-pc-windows-msvc",
       "x86_64-apple-darwin",

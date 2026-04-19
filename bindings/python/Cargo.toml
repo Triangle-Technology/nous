@@ -11,7 +11,12 @@ repository = "https://github.com/Triangle-Technology/noos"
 # The extension module is the Python package. `cdylib` produces a
 # .so / .pyd / .dylib that Python can `import`.
 [lib]
-name = "noos_regulator"
+# Internal Rust crate name (produces libnoos_python.so). Distinct from
+# the `noos = { path = "../.." }` dependency so `use noos::Regulator`
+# unambiguously resolves to the main crate. Maturin uses the separate
+# `[tool.maturin] module-name = "noos"` in pyproject.toml to install
+# the cdylib as `noos.abi3.*.so` — that's what Python imports.
+name = "noos_python"
 crate-type = ["cdylib"]
 
 [dependencies]

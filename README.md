@@ -349,11 +349,11 @@ data-variant enums.
 ### Python — `bindings/python/`
 
 ```bash
-pip install noos-regulator   # once published; PyO3 abi3-py39 wheels
+pip install noos   # once published; PyO3 abi3-py39 wheels
 ```
 
 ```python
-from noos_regulator import Regulator, LLMEvent
+from noos import Regulator, LLMEvent
 
 r = Regulator.for_user("alice")
 r.with_cost_cap(2000)
@@ -371,11 +371,11 @@ See [`bindings/python/README.md`](bindings/python/README.md).
 ### Node.js / TypeScript — `bindings/node/`
 
 ```bash
-npm install noos-regulator   # once published; napi-rs native addon
+npm install @triangle-technology/noos   # once published; napi-rs native addon
 ```
 
 ```typescript
-import { Regulator, LLMEvent } from 'noos-regulator'
+import { Regulator, LLMEvent } from '@triangle-technology/noos'
 
 const r = Regulator.forUser('alice')
 r.withCostCap(2_000)

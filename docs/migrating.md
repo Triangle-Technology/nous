@@ -32,10 +32,10 @@ graph.add_edge("agent", "tool")
 graph.recursion_limit = 25  # catches deep loops; misses same-tool pathology
 ```
 
-**After** (Python via `noos-regulator`):
+**After** (Python via `noos`):
 
 ```python
-from noos_regulator import Regulator, LLMEvent
+from noos import Regulator, LLMEvent
 
 regulator = Regulator.for_user(user_id)
 regulator.with_cost_cap(10_000)  # also defends cost-blowout path
@@ -91,11 +91,11 @@ context = mem.search(current_message, user_id="alice")
 prompt = f"Context: {context}\n\n{current_message}"
 ```
 
-**After** (Python via `noos-regulator`, with optional implicit
+**After** (Python via `noos`, with optional implicit
 correction detection):
 
 ```python
-from noos_regulator import Regulator, LLMEvent
+from noos import Regulator, LLMEvent
 
 regulator = Regulator.for_user("alice")
 regulator.with_implicit_correction_window_secs(60.0)  # auto-detect retries
@@ -157,10 +157,10 @@ def call_llm(prompt: str) -> str:
     return llm.complete(prompt).text
 ```
 
-**After** (Python via `noos-regulator`, compound halt predicate):
+**After** (Python via `noos`, compound halt predicate):
 
 ```python
-from noos_regulator import Regulator, LLMEvent
+from noos import Regulator, LLMEvent
 
 regulator = Regulator.for_user(user_id).with_cost_cap(2_000)
 
@@ -228,12 +228,12 @@ trace.update({ output: response })
 // Drift / loops only visible in dashboard, after delivery
 ```
 
-**After** (TypeScript via `noos-regulator`, with Langfuse
+**After** (TypeScript via `@triangle-technology/noos`, with Langfuse
 alongside):
 
 ```typescript
 import { Langfuse } from 'langfuse'
-import { Regulator, LLMEvent } from 'noos-regulator'
+import { Regulator, LLMEvent } from '@triangle-technology/noos'
 
 const lf = new Langfuse()
 const regulator = Regulator.forUser('alice')

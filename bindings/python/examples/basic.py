@@ -10,7 +10,7 @@ Run:
     python examples/basic.py
 """
 
-from noos_regulator import Regulator, LLMEvent
+from noos import Regulator, LLMEvent
 
 
 def scope_drift_example() -> None:

@@ -1,4 +1,4 @@
-# noos-regulator (Python)
+# noos (Python)
 
 > Python bindings for [Noos](https://crates.io/crates/noos), a reliability
 > layer for LLM agents: scope drift, cost circuit breaks, procedural
@@ -6,8 +6,8 @@
 > decisions.
 
 The Rust core is unchanged — this package ships a native extension
-(`noos_regulator.abi3.*.so / .pyd`) built from the same crate published
-on crates.io.
+(`noos.abi3.*.so / .pyd`) built from the same crate published on
+crates.io.
 
 ## Status
 
@@ -19,7 +19,7 @@ Requires `PYPI_API_TOKEN` repo secret.
 ## Install
 
 ```bash
-pip install noos-regulator
+pip install noos
 ```
 
 Wheels are published for CPython 3.9+ on Linux (x86_64, aarch64), macOS
@@ -29,7 +29,7 @@ source (requires a Rust toolchain).
 ## Quick start
 
 ```python
-from noos_regulator import Regulator, LLMEvent
+from noos import Regulator, LLMEvent
 
 r = Regulator.for_user("alice").with_cost_cap(2000)
 

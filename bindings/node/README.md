@@ -1,4 +1,4 @@
-# noos-regulator (Node.js / TypeScript)
+# @triangle-technology/noos (Node.js / TypeScript)
 
 > Node.js native bindings for [Noos](https://crates.io/crates/noos), a
 > reliability layer for LLM agents: scope drift, cost circuit breaks,
@@ -18,17 +18,17 @@ on every `v*` tag. Requires `NPM_TOKEN` repo secret.
 ## Install (once published)
 
 ```bash
-npm install noos-regulator
+npm install @triangle-technology/noos
 # or
-pnpm add noos-regulator
+pnpm add @triangle-technology/noos
 # or
-yarn add noos-regulator
+yarn add @triangle-technology/noos
 ```
 
 ## Quick start
 
 ```typescript
-import { Regulator, LLMEvent } from 'noos-regulator'
+import { Regulator, LLMEvent } from '@triangle-technology/noos'
 
 const r = Regulator.forUser('alice')
 r.withCostCap(2_000)
@@ -124,7 +124,7 @@ conventions, feed spans to Noos without wiring a separate event bus:
 
 ```typescript
 import { readFile } from 'node:fs/promises'
-import { Regulator, llmEventsFromOtelSpanJson } from 'noos-regulator'
+import { Regulator, llmEventsFromOtelSpanJson } from '@triangle-technology/noos'
 
 const spanJson = await readFile('span.json', 'utf-8')
 const r = Regulator.forUser('alice')

@@ -3,7 +3,7 @@ requires = ["maturin>=1.7,<2.0"]
 build-backend = "maturin"
 
 [project]
-name = "noos-regulator"
+name = "noos"
 version = "0.1.0"
 description = "Reliability layer for LLM agents: scope drift, cost circuit breaks, and procedural correction memory as event-driven decisions"
 requires-python = ">=3.9"
@@ -33,5 +33,5 @@ Repository = "https://github.com/Triangle-Technology/noos"
 
 [tool.maturin]
 features = ["pyo3/extension-module"]
-module-name = "noos_regulator"
+module-name = "noos"
 strip = true

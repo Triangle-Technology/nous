@@ -289,14 +289,14 @@ benches/                          # Criterion benchmarks (Session 33) — NOT in
 
 bindings/python/                   # PyO3 extension module (Session 30) — NOT in Cargo.toml include
 ├── Cargo.toml                    # pyo3 = 0.23 with abi3-py39 + extension-module features
-├── pyproject.toml                # maturin 1.7+ backend, PyPI name `noos-regulator`
+├── pyproject.toml                # maturin 1.7+ backend, PyPI name `noos` (renamed from `noos-regulator` on 2026-04-19 for brand consistency with Rust crate)
 ├── src/lib.rs                    # 5 pyclasses (Regulator / LLMEvent / Decision / CircuitBreakReason / CorrectionPattern). Session 31 added `LLMEvent.from_otel_span_json`. Session 32 added `Regulator.with_implicit_correction_window_secs` + `implicit_corrections_count`. Session 33 added `Regulator.metrics_snapshot`.
 ├── examples/basic.py             # 4 scenarios mirroring the Rust demos
 └── tests/test_regulator.py       # 25 behavioural tests
 
 bindings/node/                     # napi-rs 3.x Node native addon (Session 34, CI green since S36) — NOT in Cargo.toml include
 ├── Cargo.toml                    # napi = 3 (features = ["napi6"] — S36 bump for BigInt export), napi-derive = 3. No local build.rs; napi-build 2.3.1 is still a transitive build-dep but runs cleanly on Linux/macOS/Windows-MSVC.
-├── package.json                  # @napi-rs/cli ^3.0.0 (S36 bump — 2.x's panic with napi 3.x derive macros), npm name `noos-regulator`, 5 prebuilt target triples
+├── package.json                  # @napi-rs/cli ^3.0.0 (S36 bump — 2.x's panic with napi 3.x derive macros), npm name `@triangle-technology/noos` (scoped; bare `noos` was squatted on npm), 5 prebuilt target triples
 ├── src/lib.rs                    # Parallel port of bindings/python: Regulator / LLMEvent / Decision / CircuitBreakReason / CorrectionPattern (napi-rs auto-generates .d.ts). `LLMEvent` struct has `#[napi(js_name = "LLMEvent")]` (S36 — napi-rs 3.x Case::Pascal would rewrite to LlmEvent). OTel helper exposed as freestanding `llmEventsFromOtelSpanJson()` (S36 — mixed `#[napi(factory)]` + plain `#[napi]` static methods in one impl block silently corrupts class registration). Includes `Regulator.metricsSnapshot` + `withImplicitCorrectionWindowSecs`.
 ├── examples/basic.mjs            # 4 scenarios mirroring the Rust demos
 ├── __test__/regulator.test.mjs   # 15 behavioural tests via `node --test` (no framework dep)

@@ -13,7 +13,7 @@ import json
 
 import pytest
 
-from noos_regulator import (
+from noos import (
     CircuitBreakReason,
     CorrectionPattern,
     Decision,

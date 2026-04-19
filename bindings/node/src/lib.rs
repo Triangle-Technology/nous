@@ -4,7 +4,7 @@
 //! Exposes a minimal, TS-friendly API mirroring the Rust `Regulator`:
 //!
 //! ```typescript
-//! import { Regulator, LLMEvent } from 'noos-regulator'
+//! import { Regulator, LLMEvent } from '@triangle-technology/noos'
 //!
 //! const r = Regulator.forUser('alice')
 //! r.withCostCap(2_000)
@@ -215,7 +215,7 @@ impl LLMEvent {
 /// registration — the Python binding's `LLMEvent.from_otel_span_json`
 /// shape isn't portable to napi-rs. Usage:
 /// ```js
-/// import { llmEventsFromOtelSpanJson } from 'noos-regulator';
+/// import { llmEventsFromOtelSpanJson } from '@triangle-technology/noos';
 /// for (const e of llmEventsFromOtelSpanJson(spanJson)) regulator.onEvent(e);
 /// ```
 #[napi]

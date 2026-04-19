@@ -3,7 +3,7 @@
 //! Exposes a minimal, Pythonic API mirroring the Rust `Regulator`:
 //!
 //! ```python
-//! from noos_regulator import Regulator, LLMEvent
+//! from noos import Regulator, LLMEvent
 //!
 //! r = Regulator.for_user("alice").with_cost_cap(2000)
 //! r.on_event(LLMEvent.turn_start("Refactor fetch_user to be async"))
@@ -34,8 +34,10 @@
 use pyo3::exceptions::PyValueError;
 use pyo3::prelude::*;
 
-use noos::regulator::otel as rust_otel;
-use noos::{
+// `::noos` absolute path disambiguates from the `#[pymodule] fn noos`
+// below, whose attribute macro synthesises a module also named `noos`.
+use ::noos::regulator::otel as rust_otel;
+use ::noos::{
     CircuitBreakReason as RustCBR, CorrectionPattern as RustCP, Decision as RustDecision,
     LLMEvent as RustLLMEvent, Regulator as RustRegulator, RegulatorState as RustRS,
 };
@@ -46,7 +48,7 @@ use noos::{
 ///
 /// Construct via factory staticmethods. The object is opaque; the only
 /// inspection method is `.kind` (returns the variant name as a string).
-#[pyclass(name = "LLMEvent", frozen, module = "noos_regulator")]
+#[pyclass(name = "LLMEvent", frozen, module = "noos")]
 #[derive(Clone)]
 struct PyLLMEvent {
     inner: RustLLMEvent,
@@ -239,7 +241,7 @@ impl PyLLMEvent {
 /// - `circuit_break` — use `.reason` (a `CircuitBreakReason`) and `.suggestion`.
 /// - `procedural_warning` — use `.patterns` (list of `CorrectionPattern`).
 /// - `low_confidence_spans` — reserved; `.spans` currently unused.
-#[pyclass(name = "Decision", frozen, module = "noos_regulator")]
+#[pyclass(name = "Decision", frozen, module = "noos")]
 #[derive(Clone)]
 struct PyDecision {
     inner: RustDecision,
@@ -354,7 +356,7 @@ impl PyDecision {
 /// - `quality_decline_no_recovery` — use `.turns`, `.mean_delta`.
 /// - `repeated_failure_pattern` — use `.cluster`, `.failure_count`.
 /// - `repeated_tool_call_loop` — use `.tool_name`, `.consecutive_count`.
-#[pyclass(name = "CircuitBreakReason", frozen, module = "noos_regulator")]
+#[pyclass(name = "CircuitBreakReason", frozen, module = "noos")]
 #[derive(Clone)]
 struct PyCircuitBreakReason {
     inner: RustCBR,
@@ -472,7 +474,7 @@ impl PyCircuitBreakReason {
 ///
 /// Frozen / read-only from Python; the fields are set by the regulator
 /// when a pattern emerges.
-#[pyclass(name = "CorrectionPattern", frozen, module = "noos_regulator")]
+#[pyclass(name = "CorrectionPattern", frozen, module = "noos")]
 #[derive(Clone)]
 struct PyCorrectionPattern {
     inner: RustCP,
@@ -530,7 +532,7 @@ impl PyCorrectionPattern {
 ///
 /// `unsendable` — do not share instances across Python threads. Each
 /// agent loop owns its own regulator.
-#[pyclass(name = "Regulator", unsendable, module = "noos_regulator")]
+#[pyclass(name = "Regulator", unsendable, module = "noos")]
 struct PyRegulator {
     inner: RustRegulator,
 }
@@ -749,7 +751,7 @@ impl PyRegulator {
 // ── Module ────────────────────────────────────────────────────────────
 
 #[pymodule]
-fn noos_regulator(m: &Bound<'_, PyModule>) -> PyResult<()> {
+fn noos(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_class::<PyLLMEvent>()?;
     m.add_class::<PyDecision>()?;
     m.add_class::<PyCircuitBreakReason>()?;
