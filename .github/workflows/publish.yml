@@ -189,7 +189,9 @@ jobs:
           path: bindings/node/artifacts
 
       - name: Place binaries into platform subpackage dirs
-        run: npx napi artifacts --dir artifacts --npm-dir npm
+        # @napi-rs/cli 3.x renamed `--dir` → `--output-dir`
+        # (`--npm-dir` stays the same).
+        run: npx napi artifacts --output-dir artifacts --npm-dir npm
 
       - name: Publish platform subpackages + main
         env:
