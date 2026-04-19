@@ -62,6 +62,7 @@ use std::collections::HashMap;
 use serde::{Deserialize, Serialize};
 
 use super::CorrectionPattern;
+use crate::math::clamp;
 
 // ── Constants ──────────────────────────────────────────────────────────
 
@@ -173,8 +174,11 @@ impl CorrectionStore {
             .take(MAX_EXAMPLE_CORRECTIONS)
             .cloned()
             .collect();
-        let confidence =
-            (list.len() as f64 / MAX_CORRECTIONS_PER_CLUSTER as f64).clamp(0.0, 1.0);
+        let confidence = clamp(
+            list.len() as f64 / MAX_CORRECTIONS_PER_CLUSTER as f64,
+            0.0,
+            1.0,
+        );
         Some(CorrectionPattern {
             user_id: user_id.to_string(),
             topic_cluster: cluster.to_string(),

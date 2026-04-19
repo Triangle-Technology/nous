@@ -68,6 +68,8 @@ use std::collections::VecDeque;
 
 use serde::{Deserialize, Serialize};
 
+use crate::math::clamp;
+
 // ── Constants ──────────────────────────────────────────────────────────
 
 /// Default rolling window size for per-token logprobs.
@@ -258,7 +260,7 @@ impl TokenStatsAccumulator {
             self.logprobs.iter().map(|lp| -lp).sum::<f64>() / self.logprobs.len() as f64;
         let offset = MEAN_NLL_CONFIDENCE_MIDPOINT - mean_nll;
         let confidence = 0.5 + 0.5 * (offset / MEAN_NLL_CONFIDENCE_HALF_RANGE);
-        confidence.clamp(0.0, 1.0)
+        clamp(confidence, 0.0, 1.0)
     }
 
     /// Total tokens observed in the current turn (including unavailable

@@ -28,7 +28,16 @@ pub fn cosine_similarity(a: &[f32], b: &[f32]) -> f32 {
     (dot / denom) as f32
 }
 
-/// Clamp a value to [min, max].
+/// Clamp a value to `[min, max]`, absorbing NaN to `min`.
+///
+/// Differs from [`f64::clamp`] in NaN handling: `f64::clamp(NaN, a, b)`
+/// returns `NaN` unchanged, which then cascades through downstream
+/// arithmetic. This function uses `max(min).min(max)` — because
+/// [`f64::max`] treats NaN as less than any number and [`f64::min`]
+/// treats NaN as greater, a NaN input collapses to `min`. Chosen as
+/// the project-wide clamp so that a stray NaN at a boundary cannot
+/// corrupt invariants like `body_budget ∈ [0, 1]` (CR4 clamping bounds
+/// are safety rails; P5 fail-open).
 #[inline]
 pub fn clamp(value: f64, min: f64, max: f64) -> f64 {
     value.max(min).min(max)
@@ -87,5 +96,20 @@ mod tests {
     #[test]
     fn clamp_above_max() {
         assert_eq!(clamp(1.5, 0.0, 1.0), 1.0);
+    }
+
+    #[test]
+    fn clamp_nan_absorbs_to_min() {
+        // Contract: NaN collapses to `min` so downstream arithmetic
+        // cannot propagate NaN past a boundary (P5 fail-open). See the
+        // docstring comparison with `f64::clamp`.
+        assert_eq!(clamp(f64::NAN, 0.0, 1.0), 0.0);
+        assert_eq!(clamp(f64::NAN, -1.0, 1.0), -1.0);
+    }
+
+    #[test]
+    fn clamp_infinity() {
+        assert_eq!(clamp(f64::INFINITY, 0.0, 1.0), 1.0);
+        assert_eq!(clamp(f64::NEG_INFINITY, 0.0, 1.0), 0.0);
     }
 }

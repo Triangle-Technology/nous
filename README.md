@@ -423,7 +423,7 @@ Path 2 MVP + three feature expansions shipped:
   criterion benchmarks (30µs/turn overhead), TLS fix in examples,
   11 adversarial tests pinning scope/tool-loop limitations.
 
-442 tests passing, zero clippy warnings, zero rustdoc warnings.
+Tests, clippy, and rustdoc all clean (run `cargo test && cargo clippy --lib --tests && cargo doc --lib --no-deps` to verify current counts).
 
 ### Empirically validated
 

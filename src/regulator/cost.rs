@@ -73,6 +73,8 @@ use std::collections::VecDeque;
 
 use serde::{Deserialize, Serialize};
 
+use crate::math::clamp;
+
 // ── Constants ──────────────────────────────────────────────────────────
 
 /// Default cumulative output-token cap for one Regulator instance.
@@ -217,7 +219,7 @@ impl CostAccumulator {
         if !quality.is_finite() {
             return;
         }
-        let q = quality.clamp(0.0, 1.0);
+        let q = clamp(quality, 0.0, 1.0);
         self.quality_history.push_back(q);
         if self.quality_history.len() > self.history_window {
             self.quality_history.pop_front();
@@ -326,10 +328,16 @@ impl Default for CostAccumulator {
 /// spans can't flip the sign. Apps running for weeks should feed
 /// costs per turn, not accumulated.
 pub fn normalize_cost(tokens_out: u32, wallclock_ms: u32) -> f64 {
-    let tok_component =
-        (f64::from(tokens_out) / f64::from(TYPICAL_TURN_TOKENS_OUT)).clamp(0.0, 1.0);
-    let wc_component =
-        (f64::from(wallclock_ms) / f64::from(TYPICAL_TURN_WALLCLOCK_MS)).clamp(0.0, 1.0);
+    let tok_component = clamp(
+        f64::from(tokens_out) / f64::from(TYPICAL_TURN_TOKENS_OUT),
+        0.0,
+        1.0,
+    );
+    let wc_component = clamp(
+        f64::from(wallclock_ms) / f64::from(TYPICAL_TURN_WALLCLOCK_MS),
+        0.0,
+        1.0,
+    );
     TOKEN_COST_WEIGHT * tok_component + (1.0 - TOKEN_COST_WEIGHT) * wc_component
 }
 

@@ -17,6 +17,7 @@ use crate::cognition::locus_coeruleus::LocusCoeruleus;
 use crate::cognition::resource_allocator::ModelTier;
 use crate::cognition::signals::compute_signals;
 use crate::cognition::world_model::{consolidate, maintain, perceive};
+use crate::math::clamp;
 use crate::types::belief::AffectValence;
 use crate::types::gate::{GateType, RecentMessage};
 use crate::types::intervention::{CognitiveSignals, CognitiveState, DeltaModulation, SamplingOverride};
@@ -226,12 +227,14 @@ impl CognitiveSession {
     ///   session.track_cost(actual_cost)
     ///   session.process_response(response, quality)
     pub fn track_cost(&mut self, cost: f64) {
-        let cost = cost.clamp(0.0, 1.0);
+        // `math::clamp` absorbs NaN → 0.0 (P5 fail-open). A user-provided
+        // NaN cost must not cascade into body_budget (CR4 invariants).
+        let cost = clamp(cost, 0.0, 1.0);
         // Depletion rate matches the scale of per-turn depletion in perceive()
         // (which is ~0.015 per high-arousal turn). Cost acts as a parallel
         // channel — real effort depletes just like stress does.
         let depletion = cost * COST_DEPLETION_RATE;
-        self.model.body_budget = (self.model.body_budget - depletion).clamp(0.0, 1.0);
+        self.model.body_budget = clamp(self.model.body_budget - depletion, 0.0, 1.0);
     }
 
     /// Mutable: inject gate feedback from model inference into cognitive
