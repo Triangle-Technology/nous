@@ -39,6 +39,10 @@ Initial release.
 - Examples:
   - `basic_smoke.py` — four scenarios against fabricated LangChain payloads,
     no LLM or network required.
+  - `compare_with_max_iterations.py` — concrete comparison against the
+    tool-loop pathology. Shows Noos halts 4× sooner and saves 75% of the
+    tokens spent on the pathology vs `max_iterations=20`. Deterministic,
+    no LLM or network.
   - `openai_tools_agent.py` — full `AgentExecutor` demo with toy looping tools
     against OpenAI.
   - `anthropic_tools_agent.py` — same shape against Claude Haiku via
@@ -49,7 +53,7 @@ Initial release.
     Demonstrates that `noos-langchain` covers CrewAI without a dedicated
     `noos-crewai` package.
 - `docs/announcements.md` — post-publish outreach drafts for HN Show /
-  LangChain Discord / r/LocalLLaMA.
+  LangChain Discord / r/LocalLLaMA / Tweet / LinkedIn.
 - Tests — 30+ behavioural tests via fabricated `SimpleNamespace` payloads; no
   actual LangChain agent runtime needed. Includes async path coverage via
   `asyncio.run` (no `pytest-asyncio` dependency).

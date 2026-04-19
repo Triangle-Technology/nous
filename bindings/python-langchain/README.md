@@ -192,6 +192,7 @@ Correction patterns require at least 3 `user_correction` events on the same topi
 ## Examples
 
 - [`examples/basic_smoke.py`](examples/basic_smoke.py) — runs the handler against fabricated LangChain payloads. No LLM or API key required.
+- [`examples/compare_with_max_iterations.py`](examples/compare_with_max_iterations.py) — concrete comparison on the tool-loop pathology. Simulates the November 2025 LangChain incident pattern: Noos halts **4× sooner** and saves **75% of the output tokens** spent on the pathology vs `max_iterations=20`. No LLM or network.
 - [`examples/openai_tools_agent.py`](examples/openai_tools_agent.py) — full OpenAI tools agent with tool-loop halt protection. Requires `OPENAI_API_KEY`.
 - [`examples/anthropic_tools_agent.py`](examples/anthropic_tools_agent.py) — same shape against Claude Haiku via `langchain-anthropic`. Requires `ANTHROPIC_API_KEY`.
 - [`examples/langgraph_agent.py`](examples/langgraph_agent.py) — LangGraph React agent with cost cap + tool-loop halt. Requires `OPENAI_API_KEY`.

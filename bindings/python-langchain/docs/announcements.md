@@ -92,6 +92,21 @@ Concretely for a LangChain agent:
         #   "quality_decline_no_recovery", "repeated_failure_pattern" }
         ...
 
+Deterministic comparison on the tool-loop pathology — repeated
+same-name tool calls with empty results (the exact shape of the $47k
+incident). Noos's `CircuitBreak(RepeatedToolCallLoop)` fires on the
+5th consecutive call regardless of args; `max_iterations=20` only
+halts on total step count:
+
+                             iterations  output tokens  halt reason
+    max_iterations=20 only        20           2000     iteration cap
+    with NoosCallbackHandler       5            500     consecutive_count=5
+                                 ─────         ─────
+                        Noos halts 4x sooner, saves 75% of the output
+                        tokens spent on the pathology. Run the demo
+                        yourself: `python examples/compare_with_max_iterations.py`
+                        — deterministic, no LLM or network.
+
 Same handler works with LangGraph (`config={"callbacks": [handler]}`) and
 CrewAI (pass via the LLM constructor's callbacks). Async variant for
 `ainvoke` / `astream` is `AsyncNoosCallbackHandler`.
