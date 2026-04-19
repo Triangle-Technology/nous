@@ -168,6 +168,11 @@ jobs:
     needs: node-build
     name: Publish to npm
     runs-on: ubuntu-latest
+    # Required by NPM_CONFIG_PROVENANCE=true below — npm provenance
+    # needs GitHub's OIDC token to sign the attestation.
+    permissions:
+      contents: read
+      id-token: write
     defaults:
       run:
         working-directory: bindings/node
