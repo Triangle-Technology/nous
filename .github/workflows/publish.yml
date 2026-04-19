@@ -192,6 +192,12 @@ jobs:
           merge-multiple: true
           path: bindings/node/artifacts
 
+      - name: Create per-platform npm package dirs
+        # napi 3.x stopped auto-creating these during `artifacts`; each
+        # target in package.json's `napi.targets` gets its own subdir
+        # under npm/ with a platform-specific package.json.
+        run: npx napi create-npm-dirs --npm-dir npm
+
       - name: Place binaries into platform subpackage dirs
         # @napi-rs/cli 3.x renamed `--dir` → `--output-dir`
         # (`--npm-dir` stays the same).
