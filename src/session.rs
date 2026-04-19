@@ -215,7 +215,19 @@ impl CognitiveSession {
     /// Updates learned state (strategy success, RPE, predictions).
     /// Requires mutation because learning accumulates across responses
     /// (strategy EMA, calibration, compliance tracking).
+    ///
+    /// Non-finite `quality` (NaN, ±inf) drops the response silently
+    /// (P5 fail-open) — matching [`crate::regulator::cost::CostAccumulator::record_quality`].
+    /// A NaN quality would otherwise poison `response_rpe`
+    /// (`quality - last_prediction`), which then propagates to
+    /// [`CognitiveSignals::rpe`](crate::types::intervention::CognitiveSignals::rpe)
+    /// and silently corrupts every downstream signal that reads it.
+    /// Finite values are passed through; out-of-range values are
+    /// clamped downstream in `consolidate` where body-budget math lives.
     pub fn process_response(&mut self, response: &str, quality: f64) {
+        if !quality.is_finite() {
+            return;
+        }
         self.model = consolidate(&self.model, response, quality);
 
         // Record response in history.
@@ -434,6 +446,38 @@ mod tests {
 
         // Should have detected strategy and updated learned state.
         assert!(session.world_model().last_response_strategy.is_some());
+    }
+
+    #[test]
+    fn process_response_nan_quality_dropped_silently() {
+        // A NaN quality must not corrupt response_rpe, which flows into
+        // CognitiveSignals.rpe (documented `[-1, +1]` range) and into
+        // the body-budget RPE-replenishment path. Matches the
+        // CostAccumulator::record_quality fail-open pattern.
+        let mut session = CognitiveSession::new();
+        session.process_message("hello");
+        let initial_rpe = session.world_model().response_rpe;
+        session.process_response("ok", f64::NAN);
+        let after_rpe = session.world_model().response_rpe;
+        assert_eq!(
+            initial_rpe, after_rpe,
+            "NaN quality should be silently dropped, leaving response_rpe untouched"
+        );
+        assert!(
+            session.world_model().body_budget.is_finite()
+                && (0.0..=1.0).contains(&session.world_model().body_budget),
+            "body_budget stays in [0, 1] after NaN quality"
+        );
+    }
+
+    #[test]
+    fn process_response_infinity_quality_dropped_silently() {
+        let mut session = CognitiveSession::new();
+        session.process_message("hello");
+        session.process_response("ok", f64::INFINITY);
+        assert!(session.world_model().response_rpe.is_finite());
+        session.process_response("ok", f64::NEG_INFINITY);
+        assert!(session.world_model().response_rpe.is_finite());
     }
 
     #[test]
