@@ -126,6 +126,59 @@ jobs:
           source .venv/bin/activate
           pytest tests/ -v
 
+  # ── Python LangChain adapter (pure Python, depends on `noos` built
+  # ── from bindings/python + `langchain-core` from PyPI). Validates the
+  # ── NoosCallbackHandler shape end-to-end against fabricated LangChain
+  # ── payloads. `noos` itself is installed via maturin develop (not
+  # ── PyPI) because bindings/python isn't published yet; noos-langchain
+  # ── declares it as a dep for real pip users once that ships.
+  python-langchain-binding:
+    name: Python LangChain binding (ubuntu)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: dtolnay/rust-toolchain@stable
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: bindings/python -> target
+          shared-key: python-langchain-binding
+
+      - name: Build + install noos from bindings/python
+        working-directory: bindings/python
+        run: |
+          python -m venv $GITHUB_WORKSPACE/.venv
+          . $GITHUB_WORKSPACE/.venv/bin/activate
+          pip install --upgrade pip
+          pip install maturin
+          maturin develop --release
+
+      - name: Install noos-langchain + test deps into same venv
+        working-directory: bindings/python-langchain
+        run: |
+          . $GITHUB_WORKSPACE/.venv/bin/activate
+          # Skip deps on the editable install so pip doesn't try to
+          # resolve `noos` from PyPI (it's the local maturin build).
+          pip install langchain-core pytest
+          pip install -e . --no-deps
+
+      - name: Run pytest (behavioural tests with fabricated LC payloads)
+        working-directory: bindings/python-langchain
+        run: |
+          . $GITHUB_WORKSPACE/.venv/bin/activate
+          pytest tests/ -v
+
+      - name: Run basic_smoke example (4 scenarios, no network / no LLM)
+        working-directory: bindings/python-langchain
+        run: |
+          . $GITHUB_WORKSPACE/.venv/bin/activate
+          python examples/basic_smoke.py
+
   # ── Node binding (napi-rs 3.x). The Windows-GNU libnode.dll block
   # ── documented in bindings/node/README.md does NOT apply here —
   # ── ubuntu-latest has the right toolchain. This job is the

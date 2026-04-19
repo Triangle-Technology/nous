@@ -18,11 +18,15 @@ on:
   workflow_dispatch:
     inputs:
       publish-python:
-        description: "Publish Python to PyPI"
+        description: "Publish noos (Python binding) to PyPI"
+        type: boolean
+        default: true
+      publish-langchain:
+        description: "Publish noos-langchain to PyPI"
         type: boolean
         default: true
       publish-node:
-        description: "Publish Node to npm"
+        description: "Publish @triangle-technology/noos to npm"
         type: boolean
         default: true
 
@@ -91,6 +95,63 @@ jobs:
         with:
           pattern: wheel-*
           merge-multiple: true
+          path: dist
+
+      - name: Check wheels before upload
+        run: |
+          python -m pip install --upgrade pip twine
+          twine check dist/*
+
+      - name: Publish to PyPI
+        env:
+          TWINE_USERNAME: __token__
+          TWINE_PASSWORD: ${{ secrets.PYPI_API_TOKEN }}
+        run: twine upload --non-interactive dist/*
+
+  # ────────────────────────────────────────────────────────────────
+  # noos-langchain: pure-Python pip package. Builds one universal
+  # sdist + wheel on ubuntu. Independent of `python-publish` — the
+  # published wheel declares `noos>=0.1.0`, which is already live on
+  # PyPI as of the first `python-publish` run. First-ever run can use
+  # workflow_dispatch with `publish-python=true` + `publish-langchain=true`
+  # so `noos` lands on PyPI first; subsequent langchain-only runs can
+  # leave `publish-python=false`.
+  # ────────────────────────────────────────────────────────────────
+
+  langchain-build:
+    if: github.event_name == 'push' || inputs.publish-langchain
+    name: noos-langchain wheel
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: bindings/python-langchain
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Build sdist + wheel via hatch
+        run: |
+          python -m pip install --upgrade pip build
+          python -m build --sdist --wheel --outdir dist
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: wheel-langchain
+          path: bindings/python-langchain/dist
+
+  langchain-publish:
+    if: github.event_name == 'push' || inputs.publish-langchain
+    needs: [langchain-build]
+    name: Publish noos-langchain to PyPI
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: wheel-langchain
           path: dist
 
       - name: Check wheels before upload
