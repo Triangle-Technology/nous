@@ -1,0 +1,17 @@
+# napi-rs Node native addons on macOS need the linker to tolerate
+# undefined Node runtime symbols (`_napi_create_error`, `_napi_is_error`,
+# etc.). Those symbols are provided by the Node process at load time —
+# the standard fix is `-undefined dynamic_lookup` telling the linker
+# "resolve later, this is intentional."
+#
+# napi-rs normally sets this via `napi-build::setup()` in a local
+# build.rs. This crate deliberately omits build.rs to dodge the
+# Windows-GNU `libnode.dll` panic that Session 34 ran into; the linker
+# flags land here instead, gated to macOS so Linux / Windows-MSVC are
+# unaffected (they link cleanly without the flag).
+
+[target.x86_64-apple-darwin]
+rustflags = ["-C", "link-arg=-undefined", "-C", "link-arg=dynamic_lookup"]
+
+[target.aarch64-apple-darwin]
+rustflags = ["-C", "link-arg=-undefined", "-C", "link-arg=dynamic_lookup"]
