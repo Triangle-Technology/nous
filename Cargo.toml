@@ -29,6 +29,7 @@ include = [
     "docs/regulator-guide.md",
     "docs/app-contract.md",
     "docs/migrating.md",
+    "docs/calibration.md",
 ]
 
 [dependencies]

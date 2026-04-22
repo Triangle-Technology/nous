@@ -517,6 +517,11 @@ process.
 
 - [`docs/regulator-guide.md`](docs/regulator-guide.md) — app integrator's
   guide: event ordering, decision handling, gotchas.
+- [`docs/calibration.md`](docs/calibration.md) — tuning
+  `scope_drift_threshold` for your model mix via `shadow_replay`.
+- [`docs/migrating.md`](docs/migrating.md) — recipes replacing
+  LangChain `recursion_limit`, Mem0/Letta content memory,
+  tenacity-style retry wrappers, Langfuse/Arize observability.
 - [`docs/app-contract.md`](docs/app-contract.md) — semantic contract
   between Noos and your app.
 - [`docs/regulator-design.md`](docs/regulator-design.md) — Session 15
