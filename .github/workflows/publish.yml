@@ -91,7 +91,7 @@ jobs:
     name: Publish to PyPI
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v8
         with:
           pattern: wheel-*
           merge-multiple: true
@@ -149,7 +149,7 @@ jobs:
     name: Publish noos-langchain to PyPI
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v8
         with:
           name: wheel-langchain
           path: dist
@@ -257,7 +257,7 @@ jobs:
         run: npm install
 
       - name: Download all platform binaries
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           pattern: addon-*
           # Flatten the per-target subdirs so `napi artifacts` finds
